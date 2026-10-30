@@ -13,7 +13,9 @@ export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
   const track = tracks.find((item) => item.id === id) ?? tracks[0];
   const [hasError, setHasError] = useState(false);
-  const embedUrl = `https://www.youtube.com/embed/${track.videoId}?playsinline=1&controls=1&rel=0`;
+  const appReferrer = 'https://com.toilalaa.geetmusic';
+  const playerUrl = `https://www.youtube.com/embed/${track.videoId}?playsinline=1&controls=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(appReferrer)}&widget_referrer=${encodeURIComponent(appReferrer)}`;
+  const playerHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" /><style>html,body,iframe{margin:0;width:100%;height:100%;background:#000;border:0;overflow:hidden}</style></head><body><iframe src="${playerUrl}" title="YouTube player" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`;
 
   return (
     <View style={styles.screen}>
@@ -30,12 +32,12 @@ export default function PlayerScreen() {
           <View style={styles.errorState}><Text style={styles.errorTitle}>This video could not be embedded</Text><Text style={styles.errorText}>Try opening another track.</Text></View>
         ) : (
           <WebView
-            source={{ uri: embedUrl }}
+            source={{ html: playerHtml, baseUrl: `${appReferrer}/` }}
             style={styles.webView}
             allowsFullscreenVideo
             allowsInlineMediaPlayback
             mediaPlaybackRequiresUserAction
-            originWhitelist={['https://*']}
+            originWhitelist={['*']}
             onError={() => setHasError(true)}
           />
         )}
