@@ -9,15 +9,15 @@ import { AlbumCard } from '@/components/music/album-card';
 import { MiniPlayer } from '@/components/music/mini-player';
 import { SongRow } from '@/components/music/song-row';
 import { collections, tracks, type Track } from '@/data/music';
+import { usePlayer } from '@/context/player-context';
 import { getPopularYouTube } from '@/services/youtube';
 
 const colors = { background: '#100D15', surface: '#1C1722', text: '#F8F2FB', muted: '#AAA0B3', accent: '#E2B7FF' };
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [activeTrack, setActiveTrack] = useState<Track>(tracks[0]);
-  const [playing, setPlaying] = useState(false);
   const [homeTracks, setHomeTracks] = useState<Track[]>(tracks);
+  const { activeTrack, playing, selectTrack, setPlaying, togglePlayback } = usePlayer();
 
   useEffect(() => {
     let mounted = true;
@@ -30,8 +30,8 @@ export default function HomeScreen() {
   }, []);
 
   const playTrack = (track: Track) => {
-    setActiveTrack(track);
-    setPlaying(true);
+    selectTrack(track);
+    setPlaying(false);
     router.push({ pathname: '/player/[id]', params: { id: track.id, videoId: track.videoId, title: track.title, artist: track.artist, artwork: track.artwork, duration: track.duration } });
   };
 
@@ -73,7 +73,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} playing={playing} onToggle={() => setPlaying((value) => !value)} onOpen={() => router.push({ pathname: '/player/[id]', params: { id: activeTrack.id } })} /></View>
+      <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} playing={playing} onToggle={() => { if (playing) togglePlayback(); else playTrack(activeTrack); }} onOpen={() => playTrack(activeTrack)} /></View>
     </View>
   );
 }

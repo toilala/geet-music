@@ -5,10 +5,12 @@ import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SongRow } from '@/components/music/song-row';
+import { usePlayer } from '@/context/player-context';
 import { tracks, type Track } from '@/data/music';
 import { searchYouTube } from '@/services/youtube';
 
-function openTrack(track: Track) {
+function openTrack(track: Track, selectTrack: (track: Track) => void) {
+  selectTrack(track);
   router.push({
     pathname: '/player/[id]',
     params: {
@@ -26,6 +28,7 @@ const colors = { background: '#100D15', surface: '#1C1722', text: '#F8F2FB', mut
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
+  const { selectTrack, setPlaying } = usePlayer();
   const [query, setQuery] = useState('');
   const [searchedQuery, setSearchedQuery] = useState('');
   const [results, setResults] = useState<Track[]>(tracks);
@@ -62,7 +65,7 @@ export default function ExploreScreen() {
         </View>
         <View style={styles.chips}>{['Chill', 'Focus', 'New releases'].map((chip) => <Pressable key={chip} onPress={() => void runSearch(chip)} style={styles.chip}><Text style={styles.chipText}>{chip}</Text></Pressable>)}</View>
         <View style={styles.resultHeader}><Text style={styles.sectionTitle}>{heading}</Text>{!loading && <Text style={styles.count}>{results.length} songs</Text>}</View>
-        {loading ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Searching YouTube…</Text></View> : error ? <View style={styles.error}><Text style={styles.errorTitle}>Search needs one setup step</Text><Text style={styles.errorText}>{error}</Text></View> : <View style={styles.results}>{results.map((track) => <SongRow key={track.id} track={track} onPress={() => openTrack(track)} />)}</View>}
+        {loading ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Searching YouTube…</Text></View> : error ? <View style={styles.error}><Text style={styles.errorTitle}>Search needs one setup step</Text><Text style={styles.errorText}>{error}</Text></View> : <View style={styles.results}>{results.map((track) => <SongRow key={track.id} track={track} onPress={() => { setPlaying(false); openTrack(track, selectTrack); }} />)}</View>}
         {!loading && !error && results.length === 0 && <View style={styles.empty}><Text style={styles.emptyTitle}>Nothing found yet</Text><Text style={styles.emptyText}>Try another artist, song, or mood.</Text></View>}
       </ScrollView>
     </View>

@@ -1,12 +1,16 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type RefAttributes } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { WebView, type WebViewMessageEvent, type WebViewProps } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
 import { tracks } from '@/data/music';
+import { usePlayer } from '@/context/player-context';
+
+type WebViewInstance = { injectJavaScript: (script: string) => void };
+const NativeWebView = WebView as unknown as ComponentType<WebViewProps & RefAttributes<WebViewInstance>>;
 
 export default function PlayerScreen() {
   const params = useLocalSearchParams<{
@@ -18,8 +22,11 @@ export default function PlayerScreen() {
     duration?: string;
   }>();
   const insets = useSafeAreaInsets();
+  const webViewRef = useRef<{ injectJavaScript: (script: string) => void } | null>(null);
+  const playingRef = useRef(false);
+  const { selectTrack, setPlaying, registerController } = usePlayer();
   const fallbackTrack = tracks.find((item) => item.id === params.id) ?? tracks[0];
-  const track = {
+  const track = useMemo(() => ({
     ...fallbackTrack,
     ...(params.videoId ? {
       id: params.id ?? params.videoId,
@@ -29,11 +36,28 @@ export default function PlayerScreen() {
       artwork: params.artwork ?? fallbackTrack.artwork,
       duration: params.duration ?? fallbackTrack.duration,
     } : {}),
-  };
+  }), [fallbackTrack, params.artist, params.artwork, params.duration, params.id, params.title, params.videoId]);
   const [hasError, setHasError] = useState(false);
   const appReferrer = 'https://com.toilalaa.geetmusic';
   const playerUrl = `https://www.youtube.com/embed/${track.videoId}?playsinline=1&controls=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(appReferrer)}&widget_referrer=${encodeURIComponent(appReferrer)}`;
-  const playerHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" /><style>html,body,iframe{margin:0;width:100%;height:100%;background:#000;border:0;overflow:hidden}</style></head><body><iframe src="${playerUrl}" title="YouTube player" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`;
+  const playerHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" /><style>html,body,iframe{margin:0;width:100%;height:100%;background:#000;border:0;overflow:hidden}</style></head><body><iframe src="${playerUrl}" title="YouTube player" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><script>window.addEventListener('message',function(event){try{var data=JSON.parse(event.data);if(data.event==='onStateChange'&&window.ReactNativeWebView){window.ReactNativeWebView.postMessage(String(data.info));}}catch(_){}});</script></body></html>`;
+
+  useEffect(() => {
+    selectTrack(track);
+    setPlaying(false);
+  }, [selectTrack, setPlaying, track]);
+
+  useEffect(() => {
+    const sendCommand = (func: 'playVideo' | 'pauseVideo') => {
+      webViewRef.current?.injectJavaScript(`document.querySelector('iframe')?.contentWindow.postMessage(JSON.stringify({event:'command',func:'${func}',args:[]}), '*'); true;`);
+    };
+    registerController({
+      play: () => sendCommand('playVideo'),
+      pause: () => sendCommand('pauseVideo'),
+      toggle: () => sendCommand(playingRef.current ? 'pauseVideo' : 'playVideo'),
+    });
+    return () => registerController(null);
+  }, [registerController]);
 
   return (
     <View style={styles.screen}>
@@ -49,13 +73,19 @@ export default function PlayerScreen() {
         {hasError ? (
           <View style={styles.errorState}><Text style={styles.errorTitle}>This video could not be embedded</Text><Text style={styles.errorText}>Try opening another track.</Text></View>
         ) : (
-          <WebView
+          <NativeWebView
+            ref={webViewRef}
             source={{ html: playerHtml, baseUrl: `${appReferrer}/` }}
             style={styles.webView}
             allowsFullscreenVideo
             allowsInlineMediaPlayback
             mediaPlaybackRequiresUserAction
             originWhitelist={['*']}
+            onMessage={(event: WebViewMessageEvent) => {
+              const state = Number(event.nativeEvent.data);
+              if (state === 1) { playingRef.current = true; setPlaying(true); }
+              if (state === 0 || state === 2) { playingRef.current = false; setPlaying(false); }
+            }}
             onError={() => setHasError(true)}
           />
         )}
