@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlbumCard } from '@/components/music/album-card';
@@ -15,7 +16,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [activeTrack, setActiveTrack] = useState<Track>(tracks[0]);
   const [playing, setPlaying] = useState(false);
-  const playTrack = (track: Track) => { setActiveTrack(track); setPlaying(true); };
+  const playTrack = (track: Track) => { setActiveTrack(track); setPlaying(true); router.push({ pathname: '/player/[id]', params: { id: track.id } }); };
 
   return (
     <View style={styles.screen}>
@@ -55,7 +56,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} playing={playing} onToggle={() => setPlaying((value) => !value)} onOpen={() => setPlaying(true)} /></View>
+      <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} playing={playing} onToggle={() => setPlaying((value) => !value)} onOpen={() => router.push({ pathname: '/player/[id]', params: { id: activeTrack.id } })} /></View>
     </View>
   );
 }
