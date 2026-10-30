@@ -9,9 +9,27 @@ import { SymbolView } from 'expo-symbols';
 import { tracks } from '@/data/music';
 
 export default function PlayerScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    videoId?: string;
+    title?: string;
+    artist?: string;
+    artwork?: string;
+    duration?: string;
+  }>();
   const insets = useSafeAreaInsets();
-  const track = tracks.find((item) => item.id === id) ?? tracks[0];
+  const fallbackTrack = tracks.find((item) => item.id === params.id) ?? tracks[0];
+  const track = {
+    ...fallbackTrack,
+    ...(params.videoId ? {
+      id: params.id ?? params.videoId,
+      videoId: params.videoId,
+      title: params.title ?? fallbackTrack.title,
+      artist: params.artist ?? fallbackTrack.artist,
+      artwork: params.artwork ?? fallbackTrack.artwork,
+      duration: params.duration ?? fallbackTrack.duration,
+    } : {}),
+  };
   const [hasError, setHasError] = useState(false);
   const appReferrer = 'https://com.toilalaa.geetmusic';
   const playerUrl = `https://www.youtube.com/embed/${track.videoId}?playsinline=1&controls=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(appReferrer)}&widget_referrer=${encodeURIComponent(appReferrer)}`;

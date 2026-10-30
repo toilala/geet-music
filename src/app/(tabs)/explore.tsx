@@ -8,6 +8,20 @@ import { SongRow } from '@/components/music/song-row';
 import { tracks, type Track } from '@/data/music';
 import { searchYouTube } from '@/services/youtube';
 
+function openTrack(track: Track) {
+  router.push({
+    pathname: '/player/[id]',
+    params: {
+      id: track.id,
+      videoId: track.videoId,
+      title: track.title,
+      artist: track.artist,
+      artwork: track.artwork,
+      duration: track.duration,
+    },
+  });
+}
+
 const colors = { background: '#100D15', surface: '#1C1722', text: '#F8F2FB', muted: '#AAA0B3', accent: '#E2B7FF' };
 
 export default function ExploreScreen() {
@@ -48,7 +62,7 @@ export default function ExploreScreen() {
         </View>
         <View style={styles.chips}>{['Chill', 'Focus', 'New releases'].map((chip) => <Pressable key={chip} onPress={() => void runSearch(chip)} style={styles.chip}><Text style={styles.chipText}>{chip}</Text></Pressable>)}</View>
         <View style={styles.resultHeader}><Text style={styles.sectionTitle}>{heading}</Text>{!loading && <Text style={styles.count}>{results.length} songs</Text>}</View>
-        {loading ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Searching YouTube…</Text></View> : error ? <View style={styles.error}><Text style={styles.errorTitle}>Search needs one setup step</Text><Text style={styles.errorText}>{error}</Text></View> : <View style={styles.results}>{results.map((track) => <SongRow key={track.id} track={track} onPress={() => router.push({ pathname: '/player/[id]', params: { id: track.id } })} />)}</View>}
+        {loading ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={styles.loadingText}>Searching YouTube…</Text></View> : error ? <View style={styles.error}><Text style={styles.errorTitle}>Search needs one setup step</Text><Text style={styles.errorText}>{error}</Text></View> : <View style={styles.results}>{results.map((track) => <SongRow key={track.id} track={track} onPress={() => openTrack(track)} />)}</View>}
         {!loading && !error && results.length === 0 && <View style={styles.empty}><Text style={styles.emptyTitle}>Nothing found yet</Text><Text style={styles.emptyText}>Try another artist, song, or mood.</Text></View>}
       </ScrollView>
     </View>
