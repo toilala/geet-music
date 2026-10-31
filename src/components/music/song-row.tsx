@@ -6,7 +6,7 @@ import type { Track } from '@/data/music';
 
 export function SongRow({ track, active, onPress }: { track: Track; active?: boolean; onPress?: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Play ${track.title} by ${track.artist}`} style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
       <Image source={track.artwork} style={styles.artwork} contentFit="cover" transition={180} />
       <View style={styles.copy}>
         <View style={styles.titleLine}><View style={[styles.playingDot, active && styles.playingDotActive]} /><Text numberOfLines={1} style={styles.title}>{track.title}</Text></View>
@@ -19,13 +19,13 @@ export function SongRow({ track, active, onPress }: { track: Track; active?: boo
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  container: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 78, padding: 9, borderRadius: 22, backgroundColor: '#1C1722', borderWidth: 1, borderColor: '#2D2534' },
   pressed: { opacity: 0.7 },
-  artwork: { width: 56, height: 56, borderRadius: 16, backgroundColor: '#2A2432' },
+  artwork: { width: 60, height: 60, borderRadius: 18, backgroundColor: '#2A2432' },
   copy: { flex: 1, gap: 4 },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   playingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'transparent' },
   playingDotActive: { backgroundColor: '#E2B7FF' },
-  title: { color: '#F8F2FB', fontSize: 15, fontWeight: '700' },
+  title: { color: '#F8F2FB', fontSize: 15, fontWeight: '700', flexShrink: 1 },
   subtitle: { color: '#AAA0B3', fontSize: 12 },
 });
