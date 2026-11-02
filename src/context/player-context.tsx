@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type PropsWithChildren } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type Dispatch, type PropsWithChildren, type SetStateAction } from 'react';
 
 import { tracks, type Track } from '@/data/music';
 
@@ -15,7 +15,7 @@ type PlayerContextValue = {
   selectTrack: (track: Track) => void;
   playNext: () => void;
   playPrevious: () => void;
-  setPlaying: (playing: boolean) => void;
+  setPlaying: Dispatch<SetStateAction<boolean>>;
   togglePlayback: () => void;
   registerController: (controller: PlayerController | null) => void;
 };
@@ -43,7 +43,10 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     setQueue((currentQueue) => {
       const currentIndex = currentQueue.findIndex((item) => item.id === activeTrack.id);
       const nextTrack = currentQueue[(currentIndex + 1) % currentQueue.length];
-      if (nextTrack) setActiveTrack(nextTrack);
+      if (nextTrack) {
+        setActiveTrack(nextTrack);
+        setPlaying(true);
+      }
       return currentQueue;
     });
   }, [activeTrack.id]);
@@ -51,7 +54,10 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     setQueue((currentQueue) => {
       const currentIndex = currentQueue.findIndex((item) => item.id === activeTrack.id);
       const previousTrack = currentQueue[(currentIndex - 1 + currentQueue.length) % currentQueue.length];
-      if (previousTrack) setActiveTrack(previousTrack);
+      if (previousTrack) {
+        setActiveTrack(previousTrack);
+        setPlaying(true);
+      }
       return currentQueue;
     });
   }, [activeTrack.id]);

@@ -19,7 +19,7 @@ const suggestions = ['Chill', 'Focus', 'New releases', 'Adele', 'Afrobeats'];
 
 function openTrack(track: Track, selectTrack: (track: Track) => void, setPlaying: (playing: boolean) => void) {
   selectTrack(track);
-  setPlaying(false);
+  setPlaying(true);
   router.push({ pathname: '/player/[id]', params: { id: track.id, videoId: track.videoId, title: track.title, artist: track.artist, artwork: track.artwork, duration: track.duration } });
 }
 

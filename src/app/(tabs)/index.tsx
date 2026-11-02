@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
@@ -13,11 +13,15 @@ import { collections, tracks, type Track } from '@/data/music';
 import { usePlayer } from '@/context/player-context';
 import { getPopularYouTube } from '@/services/youtube';
 import { Colors } from '@/constants/theme';
+import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import { Button, Divider, List, Switch } from 'react-native-paper';
 
 const colors = { background: Colors.dark.background, surface: Colors.dark.surface, surfaceHighest: Colors.dark.surfaceHighest, text: Colors.dark.text, muted: Colors.dark.textSecondary, accent: Colors.dark.primary, tertiary: Colors.dark.tertiary };
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const profileSheetRef = useRef<ComponentRef<typeof BottomSheetModal> | null>(null);
+  const [offlineMode, setOfflineMode] = useState(false);
   const [homeTracks, setHomeTracks] = useState<Track[]>(tracks);
   const { activeTrack, playing, selectTrack, setPlaying, togglePlayback } = usePlayer();
 
@@ -33,7 +37,7 @@ export default function HomeScreen() {
 
   const playTrack = (track: Track) => {
     selectTrack(track);
-    setPlaying(false);
+    setPlaying(true);
     router.push({ pathname: '/player/[id]', params: { id: track.id, videoId: track.videoId, title: track.title, artist: track.artist, artwork: track.artwork, duration: track.duration } });
   };
 
@@ -42,7 +46,7 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 110 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View><Text style={styles.kicker}>YOUR LIBRARY</Text><Text style={styles.greeting}>Good evening</Text></View>
-          <Pressable style={styles.avatar} accessibilityLabel="Open profile"><Text style={styles.avatarText}>G</Text></Pressable>
+          <Pressable onPress={() => profileSheetRef.current?.present()} style={styles.avatar} accessibilityLabel="Open profile"><Text style={styles.avatarText}>G</Text></Pressable>
         </View>
 
         <SearchBar onPress={() => router.push('/explore')} />
@@ -78,6 +82,16 @@ export default function HomeScreen() {
       </ScrollView>
 
       <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} playing={playing} onToggle={() => { if (playing) togglePlayback(); else playTrack(activeTrack); }} onOpen={() => playTrack(activeTrack)} /></View>
+      <BottomSheetModal ref={profileSheetRef} snapPoints={['44%']} backgroundStyle={styles.sheetBackground} handleIndicatorStyle={styles.sheetHandle}>
+        <BottomSheetView style={styles.profileSheet}>
+          <Text style={styles.profileTitle}>Geet Music</Text>
+          <Text style={styles.profileSubtitle}>Your listening space</Text>
+          <Divider style={styles.divider} />
+          <List.Item title="Offline mode" description="Keep the interface ready without a connection" left={(props) => <List.Icon {...props} icon="download" />} right={() => <Switch value={offlineMode} onValueChange={setOfflineMode} />} />
+          <List.Item title="Playback & data" description="YouTube playback settings" left={(props) => <List.Icon {...props} icon="tune-variant" />} />
+          <Button mode="contained-tonal" onPress={() => profileSheetRef.current?.dismiss()} style={styles.doneButton}>Done</Button>
+        </BottomSheetView>
+      </BottomSheetModal>
     </View>
   );
 }
@@ -96,4 +110,5 @@ const styles = StyleSheet.create({
   heroButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.accent, paddingVertical: 11, paddingHorizontal: 16, borderRadius: 18, marginTop: 18 }, heroButtonText: { color: '#21152E', fontSize: 13, fontWeight: '800' }, pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }, sectionTitle: { color: colors.text, fontSize: 21, fontWeight: '800' }, sectionAction: { color: colors.accent, fontSize: 13, fontWeight: '700' }, horizontalRow: { gap: 16, paddingBottom: 32 }, songList: { gap: 4, marginBottom: 28 },
   resumeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: Colors.dark.outline }, resumeIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, moodCopy: { flex: 1, gap: 3 }, moodTitle: { color: colors.text, fontSize: 15, fontWeight: '700' }, moodSubtitle: { color: colors.muted, fontSize: 12 }, playerDock: { position: 'absolute', left: 12, right: 12 },
+  sheetBackground: { backgroundColor: colors.surface }, sheetHandle: { backgroundColor: Colors.dark.outline }, profileSheet: { padding: 24 }, profileTitle: { color: colors.text, fontSize: 25, fontWeight: '800' }, profileSubtitle: { color: colors.muted, marginTop: 4 }, divider: { marginVertical: 14 }, doneButton: { marginTop: 16 },
 });
