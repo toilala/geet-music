@@ -3,6 +3,9 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Track } from '@/data/music';
+import { Colors } from '@/constants/theme';
+
+const colors = Colors.dark;
 
 export function SongRow({ track, active, onPress }: { track: Track; active?: boolean; onPress?: () => void }) {
   return (
@@ -19,13 +22,13 @@ export function SongRow({ track, active, onPress }: { track: Track; active?: boo
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 78, padding: 9, borderRadius: 22, backgroundColor: '#1C1722', borderWidth: 1, borderColor: '#2D2534' },
+  container: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 78, padding: 9, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceHighest },
   pressed: { opacity: 0.7 },
-  artwork: { width: 60, height: 60, borderRadius: 18, backgroundColor: '#2A2432' },
+  artwork: { width: 60, height: 60, borderRadius: 18, backgroundColor: colors.surfaceHighest },
   copy: { flex: 1, gap: 4 },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   playingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'transparent' },
-  playingDotActive: { backgroundColor: '#E2B7FF' },
-  title: { color: '#F8F2FB', fontSize: 15, fontWeight: '700', flexShrink: 1 },
-  subtitle: { color: '#AAA0B3', fontSize: 12 },
+  playingDotActive: { backgroundColor: colors.primary },
+  title: { color: colors.text, fontSize: 15, fontWeight: '700', flexShrink: 1 },
+  subtitle: { color: colors.textSecondary, fontSize: 12 },
 });

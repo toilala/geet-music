@@ -8,10 +8,12 @@ import { SongRow } from '@/components/music/song-row';
 import { usePlayer } from '@/context/player-context';
 import { tracks, type Track } from '@/data/music';
 import { getPopularYouTube, searchYouTube } from '@/services/youtube';
+import { Colors } from '@/constants/theme';
 
 const colors = {
-  background: '#100D15', surface: '#1C1722', surfaceHigh: '#282130', surfaceHighest: '#342A3E',
-  text: '#F8F2FB', muted: '#B9ACBF', accent: '#E2B7FF', accentText: '#241331', outline: '#51455A', error: '#FFB4AB',
+  background: Colors.dark.background, surface: Colors.dark.surface, surfaceHigh: Colors.dark.surfaceHigh,
+  surfaceHighest: Colors.dark.surfaceHighest, text: Colors.dark.text, muted: Colors.dark.textSecondary,
+  accent: Colors.dark.primary, accentText: Colors.dark.onPrimary, outline: Colors.dark.outline, error: '#FFB4AB',
 };
 const suggestions = ['Chill', 'Focus', 'New releases', 'Adele', 'Afrobeats'];
 
@@ -60,11 +62,10 @@ export default function ExploreScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 110 }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>DISCOVER</Text>
-            <Text style={styles.title}>What do you want{`\n`}to hear?</Text>
-            <Text style={styles.subtitle}>Search the world of music on YouTube.</Text>
+            <Text style={styles.eyebrow}>SEARCH</Text>
+            <Text style={styles.title}>Find your next song</Text>
+            <Text style={styles.subtitle}>Search artists, albums, songs, and playlists.</Text>
           </View>
-          <View style={styles.headerIcon}><SymbolView name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }} tintColor={colors.accent} size={23} /></View>
         </View>
 
         <View style={styles.searchShell}>
@@ -78,7 +79,7 @@ export default function ExploreScreen() {
           {suggestions.map((suggestion, index) => <Pressable key={suggestion} onPress={() => void runSearch(suggestion)} style={[styles.chip, index === 0 && styles.chipSelected]}><Text style={[styles.chipText, index === 0 && styles.chipTextSelected]}>{suggestion}</Text></Pressable>)}
         </ScrollView>
 
-        <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>{heading}</Text><Text style={styles.sectionSubtitle}>{searchedQuery ? 'Matched videos from YouTube' : 'Fresh picks, updated live'}</Text></View><View style={styles.countBadge}><Text style={styles.count}>{results.length || '—'}</Text></View></View>
+        <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>{heading}</Text><Text style={styles.sectionSubtitle}>{searchedQuery ? 'Songs and videos matching your search' : 'Popular music right now'}</Text></View><View style={styles.countBadge}><Text style={styles.count}>{results.length || '—'}</Text></View></View>
         {error.length > 0 && <View style={styles.errorBanner}><SymbolView name={{ ios: 'info.circle', android: 'info', web: 'info' }} tintColor={colors.error} size={18} /><Text style={styles.errorText}>{error}</Text></View>}
         {loading && results.length === 0 ? <View style={styles.loading}><ActivityIndicator color={colors.accent} size="small" /><Text style={styles.loadingText}>Finding music…</Text></View> : results.length > 0 ? <View style={styles.results}>{results.map((track) => <SongRow key={track.id} track={track} onPress={() => openTrack(track, selectTrack, setPlaying)} />)}</View> : <View style={styles.empty}><View style={styles.emptyIcon}><SymbolView name={{ ios: 'music.note', android: 'music_note', web: 'music_note' }} tintColor={colors.accent} size={24} /></View><Text style={styles.emptyTitle}>No music found</Text><Text style={styles.emptyText}>Try another artist, song, or mood.</Text></View>}
       </ScrollView>

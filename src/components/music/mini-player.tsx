@@ -1,8 +1,10 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-
 import type { Track } from '@/data/music';
+import { Colors } from '@/constants/theme';
+
+const colors = Colors.dark;
 
 export function MiniPlayer({ track, playing, onToggle, onOpen }: { track: Track; playing: boolean; onToggle: () => void; onOpen: () => void }) {
   return (
@@ -17,11 +19,11 @@ export function MiniPlayer({ track, playing, onToggle, onOpen }: { track: Track;
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, padding: 8, backgroundColor: '#282130', borderWidth: 1, borderColor: '#3B3046' },
+  container: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, padding: 8, backgroundColor: colors.surfaceHighest, borderWidth: 1, borderColor: colors.outline },
   pressed: { opacity: 0.82 },
   artwork: { width: 48, height: 48, borderRadius: 16 },
   copy: { flex: 1, gap: 3 },
-  title: { color: '#FAF3FE', fontSize: 14, fontWeight: '700' },
-  subtitle: { color: '#AAA0B3', fontSize: 12 },
-  playButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2B7FF', justifyContent: 'center', alignItems: 'center' },
+  title: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  subtitle: { color: colors.textSecondary, fontSize: 12 },
+  playButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
 });

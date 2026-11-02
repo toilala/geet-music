@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 
-import type { Track } from '@/data/music';
+import { tracks, type Track } from '@/data/music';
 
 type PlayerController = {
   play: () => void;
@@ -10,8 +10,11 @@ type PlayerController = {
 
 type PlayerContextValue = {
   activeTrack: Track;
+  queue: Track[];
   playing: boolean;
   selectTrack: (track: Track) => void;
+  playNext: () => void;
+  playPrevious: () => void;
   setPlaying: (playing: boolean) => void;
   togglePlayback: () => void;
   registerController: (controller: PlayerController | null) => void;
@@ -28,10 +31,30 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     artwork: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=600&q=85',
     duration: '5:01',
   });
+  const [queue, setQueue] = useState<Track[]>(tracks);
   const [playing, setPlaying] = useState(false);
   const controllerRef = useRef<PlayerController | null>(null);
 
-  const selectTrack = useCallback((track: Track) => setActiveTrack(track), []);
+  const selectTrack = useCallback((track: Track) => {
+    setActiveTrack(track);
+    setQueue((currentQueue) => currentQueue.some((item) => item.id === track.id) ? currentQueue : [...currentQueue, track]);
+  }, []);
+  const playNext = useCallback(() => {
+    setQueue((currentQueue) => {
+      const currentIndex = currentQueue.findIndex((item) => item.id === activeTrack.id);
+      const nextTrack = currentQueue[(currentIndex + 1) % currentQueue.length];
+      if (nextTrack) setActiveTrack(nextTrack);
+      return currentQueue;
+    });
+  }, [activeTrack.id]);
+  const playPrevious = useCallback(() => {
+    setQueue((currentQueue) => {
+      const currentIndex = currentQueue.findIndex((item) => item.id === activeTrack.id);
+      const previousTrack = currentQueue[(currentIndex - 1 + currentQueue.length) % currentQueue.length];
+      if (previousTrack) setActiveTrack(previousTrack);
+      return currentQueue;
+    });
+  }, [activeTrack.id]);
   const registerController = useCallback((controller: PlayerController | null) => {
     controllerRef.current = controller;
   }, []);
@@ -39,12 +62,15 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(() => ({
     activeTrack,
+    queue,
     playing,
     selectTrack,
+    playNext,
+    playPrevious,
     setPlaying,
     togglePlayback,
     registerController,
-  }), [activeTrack, playing, selectTrack, togglePlayback, registerController]);
+  }), [activeTrack, queue, playing, selectTrack, playNext, playPrevious, togglePlayback, registerController]);
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

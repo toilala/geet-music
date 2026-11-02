@@ -2,6 +2,9 @@ import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Collection } from '@/data/music';
+import { Colors } from '@/constants/theme';
+
+const colors = Colors.dark;
 
 export function AlbumCard({ collection, onPress }: { collection: Collection; onPress?: () => void }) {
   return (
@@ -28,6 +31,6 @@ const styles = StyleSheet.create({
   copy: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   accentDot: { width: 7, height: 7, borderRadius: 4 },
   textWrap: { flex: 1, gap: 2 },
-  title: { color: '#F8F2FB', fontSize: 15, fontWeight: '700' },
-  subtitle: { color: '#AAA0B3', fontSize: 12 },
+  title: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  subtitle: { color: colors.textSecondary, fontSize: 12 },
 });
