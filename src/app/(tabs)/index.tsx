@@ -1,100 +1,443 @@
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddToPlaylistSheet } from '@/components/music/add-to-playlist-sheet';
 import { AlbumCard } from '@/components/music/album-card';
+import { ExpressiveHeader } from '@/components/music/expressive-header';
 import { MiniPlayer } from '@/components/music/mini-player';
-import { SearchBar } from '@/components/music/search-bar';
+import { MoodPills } from '@/components/music/mood-pills';
+import { QuickPicksGrid } from '@/components/music/quick-picks-grid';
 import { SongRow } from '@/components/music/song-row';
-import { collections, tracks, type Track } from '@/data/music';
-import { usePlayer } from '@/context/player-context';
-import { getPopularYouTube } from '@/services/youtube';
+import { TrackOptionsSheet } from '@/components/music/track-options-sheet';
 import { Colors } from '@/constants/theme';
+import { useLibrary } from '@/context/library-context';
+import { usePlayer } from '@/context/player-context';
+import { collections, moodCategories, tracks, type MoodCategory, type Track } from '@/data/music';
+import { getMusicByMood, getPopularYouTube } from '@/services/youtube';
 
-const colors = { background: Colors.dark.background, surface: Colors.dark.surface, surfaceHigh: Colors.dark.surfaceHigh, surfaceHighest: Colors.dark.surfaceHighest, text: Colors.dark.text, muted: Colors.dark.textSecondary, accent: Colors.dark.primary, primaryContainer: Colors.dark.primaryContainer, onPrimaryContainer: Colors.dark.onPrimaryContainer, tertiary: Colors.dark.tertiary };
+const colors = Colors.dark;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [homeTracks, setHomeTracks] = useState<Track[]>(tracks);
-  const { activeTrack, currentTime, duration, playing, selectTrack, setPlaying, togglePlayback } = usePlayer();
+  const { activeTrack, currentTime, duration, playing, selectTrack, setPlaying, togglePlayback, playNext } =
+    usePlayer();
+  const { addToHistory, history } = useLibrary();
 
+  const [selectedMood, setSelectedMood] = useState<MoodCategory>(moodCategories[0]);
+  const [homeTracks, setHomeTracks] = useState<Track[]>(tracks);
+  const [moodTracks, setMoodTracks] = useState<Track[]>([]);
+  const [loadingMood, setLoadingMood] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Selected track for options sheet
+  const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
+  const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
+
+  const optionsSheetRef = useRef<BottomSheetModal>(null);
+  const playlistSheetRef = useRef<BottomSheetModal>(null);
+
+  // Initial load
   useEffect(() => {
     let mounted = true;
-    void getPopularYouTube().then((popularTracks) => {
-      if (mounted && popularTracks.length > 0) {
-        const unique = [...tracks, ...popularTracks].filter((track, index, list) => list.findIndex((item) => item.id === track.id) === index);
-        setHomeTracks(unique.slice(0, 12));
-      }
-    }).catch(() => {
-      // The curated tracks keep the home screen useful when the API is unavailable.
-    });
-    return () => { mounted = false; };
+    void getPopularYouTube()
+      .then((popular) => {
+        if (mounted && popular.length > 0) {
+          const merged = [...popular, ...tracks].filter(
+            (t, i, arr) => arr.findIndex((x) => x.id === t.id) === i
+          );
+          setHomeTracks(merged);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const playTrack = (track: Track) => {
-    selectTrack(track);
-    setPlaying(true);
-    router.push({ pathname: '/player/[id]', params: { id: track.id, videoId: track.videoId, title: track.title, artist: track.artist, artwork: track.artwork, duration: track.duration } });
+  // Mood filter load
+  useEffect(() => {
+    if (selectedMood.id === 'all') return;
+    let mounted = true;
+    void getMusicByMood(selectedMood.query)
+      .then((res) => {
+        if (mounted) {
+          setMoodTracks(res);
+        }
+      })
+      .catch(() => {
+        if (mounted) setMoodTracks(tracks);
+      })
+      .finally(() => {
+        if (mounted) setLoadingMood(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [selectedMood]);
+
+  const handleSelectMood = (mood: MoodCategory) => {
+    setSelectedMood(mood);
+    if (mood.id !== 'all') {
+      setLoadingMood(true);
+    }
   };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const pop = await getPopularYouTube();
+      if (pop.length > 0) {
+        setHomeTracks(pop);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handlePlayTrack = (track: Track, queueList?: Track[]) => {
+    addToHistory(track);
+    selectTrack(track, queueList || homeTracks);
+    setPlaying(true);
+    router.push({
+      pathname: '/player/[id]',
+      params: {
+        id: track.id,
+        videoId: track.videoId,
+        title: track.title,
+        artist: track.artist,
+        artwork: track.artwork,
+        duration: track.duration,
+      },
+    });
+  };
+
+  const openOptions = (track: Track) => {
+    setOptionsTrack(track);
+    optionsSheetRef.current?.present();
+  };
+
+  const openAddToPlaylist = (track: Track) => {
+    setPlaylistTrack(track);
+    playlistSheetRef.current?.present();
+  };
+
+  const featuredTrack = homeTracks[0] ?? tracks[0];
+  const quickPicks = history.length > 0 ? history.slice(0, 8) : homeTracks.slice(0, 8);
+  const trendingTracks = homeTracks.slice(0, 10);
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 110 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View><Text style={styles.kicker}>YOUR LIBRARY</Text><Text style={styles.greeting}>Good evening</Text></View>
-          <SymbolView name={{ ios: 'music.note.house.fill', android: 'library_music', web: 'library_music' }} tintColor={colors.accent} size={28} />
-        </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 120 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }>
+        {/* Expressive Header */}
+        <ExpressiveHeader />
 
-        <SearchBar onPress={() => router.push('/explore')} />
+        {/* Mood pills filter */}
+        <MoodPills selectedMoodId={selectedMood.id} onSelectMood={handleSelectMood} />
 
-        <View style={styles.hero}>
-          <Image source={collections[0].artwork} style={StyleSheet.absoluteFill} contentFit="cover" transition={240} />
-          <View style={styles.heroShade} />
-          <View style={styles.heroContent}>
-            <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>YOUR DAILY MIX</Text></View>
-            <Text style={styles.heroTitle}>Music for this moment</Text>
-            <Text style={styles.heroSubtitle}>Pick up where you left off and keep the music moving.</Text>
-            <Pressable onPress={() => playTrack(homeTracks[0])} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]}>
-              <SymbolView name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }} tintColor="#21152E" size={17} />
-              <Text style={styles.heroButtonText}>Start listening</Text>
-            </Pressable>
+        {/* Dynamic Mood Section when mood != all */}
+        {selectedMood.id !== 'all' ? (
+          <View style={styles.moodSection}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>{selectedMood.label} Mix</Text>
+                <Text style={styles.sectionSubtitle}>Handpicked tracks for your mood</Text>
+              </View>
+            </View>
+
+            {loadingMood ? (
+              <View style={styles.loaderBox}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.loaderText}>Finding {selectedMood.label} tracks...</Text>
+              </View>
+            ) : (
+              <View style={styles.moodList}>
+                {moodTracks.map((track) => (
+                  <SongRow
+                    key={track.id}
+                    track={track}
+                    active={track.id === activeTrack.id && playing}
+                    onPress={() => handlePlayTrack(track, moodTracks)}
+                    onOptionsPress={openOptions}
+                  />
+                ))}
+              </View>
+            )}
           </View>
-        </View>
+        ) : (
+          <>
+            {/* Featured Hero Banner */}
+            <View style={styles.heroWrap}>
+              <View style={styles.heroCard}>
+                <Image
+                  source={featuredTrack.artwork}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                  transition={240}
+                />
+                <View style={styles.heroOverlay} />
+                <View style={styles.heroContent}>
+                  <View style={styles.heroBadge}>
+                    <SymbolView
+                      name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
+                      tintColor={colors.onPrimaryContainer}
+                      size={13}
+                    />
+                    <Text style={styles.heroBadgeText}>SPEED DIAL</Text>
+                  </View>
+                  <Text numberOfLines={2} style={styles.heroTitle}>
+                    {featuredTrack.title}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.heroSubtitle}>
+                    {featuredTrack.artist}
+                  </Text>
+                  <Pressable
+                    onPress={() => handlePlayTrack(featuredTrack)}
+                    style={({ pressed }) => [styles.heroPlayBtn, pressed && styles.pressed]}>
+                    <SymbolView
+                      name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
+                      tintColor={colors.onPrimary}
+                      size={18}
+                    />
+                    <Text style={styles.heroPlayText}>Listen Now</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
 
-        <SectionHeader title="Made for you" action="See all" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
-          {collections.map((collection, index) => <AlbumCard key={collection.id} collection={collection} onPress={() => playTrack(homeTracks[index % homeTracks.length])} />)}
-        </ScrollView>
+            {/* Quick Picks / Listen Again */}
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Quick picks</Text>
+                <Text style={styles.sectionSubtitle}>Start radio or jump right back in</Text>
+              </View>
+            </View>
+            <QuickPicksGrid
+              tracks={quickPicks}
+              activeTrackId={activeTrack.id}
+              isPlaying={playing}
+              onPlayTrack={(t) => handlePlayTrack(t, quickPicks)}
+              onOptionsPress={openOptions}
+            />
 
-        <SectionHeader title="Recently played" action="See all" />
-        <View style={styles.songList}>{homeTracks.slice(0, 5).map((track) => <SongRow key={track.id} track={track} active={track.id === activeTrack.id && playing} onPress={() => playTrack(track)} />)}</View>
+            {/* Curated Mixes / Albums */}
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Mixed for you</Text>
+                <Text style={styles.sectionSubtitle}>Endless personalized stations</Text>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalRow}>
+              {collections.map((collection, idx) => (
+                <AlbumCard
+                  key={collection.id}
+                  collection={collection}
+                  onPress={() => handlePlayTrack(homeTracks[idx % homeTracks.length])}
+                />
+              ))}
+            </ScrollView>
 
-        <SectionHeader title="Jump back in" action="See all" />
-        <View style={styles.resumeCard}>
-          <View style={[styles.resumeIcon, { backgroundColor: colors.tertiary }]}><SymbolView name={{ ios: 'headphones', android: 'headphones', web: 'headphones' }} tintColor={colors.background} size={22} /></View>
-          <View style={styles.moodCopy}><Text style={styles.moodTitle}>Continue listening</Text><Text style={styles.moodSubtitle}>Your recent music, right where you left it.</Text></View>
-          <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} tintColor={colors.muted} size={18} />
-        </View>
+            {/* Trending Now / Top Charts */}
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Trending charts</Text>
+                <Text style={styles.sectionSubtitle}>Most played tracks right now</Text>
+              </View>
+            </View>
+            <View style={styles.chartList}>
+              {trendingTracks.map((track, index) => (
+                <SongRow
+                  key={track.id}
+                  track={track}
+                  rank={index + 1}
+                  active={track.id === activeTrack.id && playing}
+                  onPress={() => handlePlayTrack(track, trendingTracks)}
+                  onOptionsPress={openOptions}
+                />
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
 
-      <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} currentTime={currentTime} duration={duration} playing={playing} onToggle={() => { if (playing) togglePlayback(); else playTrack(activeTrack); }} onOpen={() => playTrack(activeTrack)} /></View>
+      {/* Floating MiniPlayer */}
+      <View style={[styles.playerDock, { bottom: insets.bottom + 65 }]}>
+        <MiniPlayer
+          track={activeTrack}
+          currentTime={currentTime}
+          duration={duration}
+          playing={playing}
+          onToggle={togglePlayback}
+          onNext={playNext}
+          onOpen={() =>
+            router.push({
+              pathname: '/player/[id]',
+              params: {
+                id: activeTrack.id,
+                videoId: activeTrack.videoId,
+                title: activeTrack.title,
+                artist: activeTrack.artist,
+                artwork: activeTrack.artwork,
+                duration: activeTrack.duration,
+              },
+            })
+          }
+        />
+      </View>
+
+      {/* Track Options Sheet */}
+      <TrackOptionsSheet
+        ref={optionsSheetRef}
+        track={optionsTrack}
+        onOpenPlaylistModal={openAddToPlaylist}
+      />
+
+      {/* Add To Playlist Sheet */}
+      <AddToPlaylistSheet ref={playlistSheetRef} track={playlistTrack} />
     </View>
   );
 }
 
-function SectionHeader({ title, action }: { title: string; action: string }) {
-  return <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionAction}>{action}</Text></View>;
-}
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  kicker: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.7 }, greeting: { color: colors.text, fontSize: 34, lineHeight: 40, fontWeight: '800', marginTop: 5 },
-  hero: { height: 306, overflow: 'hidden', borderRadius: 36, backgroundColor: colors.surfaceHighest, marginBottom: 32 }, heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8, 24, 22, 0.48)' }, heroContent: { flex: 1, justifyContent: 'flex-end', padding: 24 },
-  heroBadge: { alignSelf: 'flex-start', backgroundColor: colors.primaryContainer, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, marginBottom: 12 }, heroBadgeText: { color: colors.onPrimaryContainer, fontSize: 10, fontWeight: '800', letterSpacing: 1.1 }, heroTitle: { color: '#F3FFFC', fontSize: 29, lineHeight: 34, fontWeight: '800', maxWidth: 280 }, heroSubtitle: { color: '#D5E4E0', fontSize: 14, lineHeight: 20, marginTop: 7, maxWidth: 275 }, heroButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primaryContainer, paddingVertical: 12, paddingHorizontal: 17, borderRadius: 18, marginTop: 18 }, heroButtonText: { color: colors.onPrimaryContainer, fontSize: 13, fontWeight: '800' }, pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }, sectionTitle: { color: colors.text, fontSize: 21, fontWeight: '800' }, sectionAction: { color: colors.accent, fontSize: 13, fontWeight: '700' }, horizontalRow: { gap: 16, paddingBottom: 32 }, songList: { gap: 4, marginBottom: 28 },
-  resumeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: Colors.dark.outline }, resumeIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, moodCopy: { flex: 1, gap: 3 }, moodTitle: { color: colors.text, fontSize: 15, fontWeight: '700' }, moodSubtitle: { color: colors.muted, fontSize: 12 }, playerDock: { position: 'absolute', left: 12, right: 12 },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {},
+  heroWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 28,
+  },
+  heroCard: {
+    height: 240,
+    borderRadius: 32,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceHighest,
+    justifyContent: 'flex-end',
+  },
+  heroOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(9, 21, 19, 0.65)',
+  },
+  heroContent: {
+    padding: 22,
+    gap: 6,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primaryContainer,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  heroBadgeText: {
+    color: colors.onPrimaryContainer,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  heroTitle: {
+    color: '#F4FCF9',
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  heroSubtitle: {
+    color: '#B6D1CB',
+    fontSize: 14,
+  },
+  heroPlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  heroPlayText: {
+    color: colors.onPrimary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 14,
+    marginTop: 6,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  sectionSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  horizontalRow: {
+    paddingHorizontal: 20,
+    gap: 14,
+    paddingBottom: 28,
+  },
+  chartList: {
+    paddingHorizontal: 12,
+    gap: 2,
+  },
+  moodSection: {
+    paddingTop: 8,
+  },
+  moodList: {
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  loaderBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 60,
+  },
+  loaderText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  playerDock: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+  },
+  pressed: {
+    opacity: 0.8,
+  },
 });

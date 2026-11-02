@@ -8,6 +8,8 @@ import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { PlayerProvider } from '@/context/player-context';
+import { LibraryProvider } from '@/context/library-context';
+import { PlaybackEngine } from '@/components/music/playback-engine';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,19 +21,25 @@ export default function RootLayout() {
     ...(isDark ? MD3DarkTheme : MD3LightTheme),
     colors: { ...(isDark ? MD3DarkTheme.colors : MD3LightTheme.colors), ...theme[isDark ? 'dark' : 'light'] },
   };
-  return <GestureHandlerRootView style={{ flex: 1 }}>
-    <PaperProvider theme={paperTheme}>
-      <BottomSheetModalProvider>
-        <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-          <PlayerProvider>
-            <AnimatedSplashOverlay />
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="player/[id]" options={{ headerShown: false, presentation: 'modal' }} />
-            </Stack>
-          </PlayerProvider>
-        </ThemeProvider>
-      </BottomSheetModalProvider>
-    </PaperProvider>
-  </GestureHandlerRootView>;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider theme={paperTheme}>
+        <BottomSheetModalProvider>
+          <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+            <PlayerProvider>
+              <LibraryProvider>
+                <PlaybackEngine />
+                <AnimatedSplashOverlay />
+                <Stack>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="player/[id]" options={{ headerShown: false, presentation: 'modal' }} />
+                </Stack>
+              </LibraryProvider>
+            </PlayerProvider>
+          </ThemeProvider>
+        </BottomSheetModalProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
+  );
 }
