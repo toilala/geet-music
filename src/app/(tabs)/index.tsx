@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
@@ -13,22 +13,21 @@ import { collections, tracks, type Track } from '@/data/music';
 import { usePlayer } from '@/context/player-context';
 import { getPopularYouTube } from '@/services/youtube';
 import { Colors } from '@/constants/theme';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { Button, Divider, List, Switch } from 'react-native-paper';
 
-const colors = { background: Colors.dark.background, surface: Colors.dark.surface, surfaceHighest: Colors.dark.surfaceHighest, text: Colors.dark.text, muted: Colors.dark.textSecondary, accent: Colors.dark.primary, tertiary: Colors.dark.tertiary };
+const colors = { background: Colors.dark.background, surface: Colors.dark.surface, surfaceHigh: Colors.dark.surfaceHigh, surfaceHighest: Colors.dark.surfaceHighest, text: Colors.dark.text, muted: Colors.dark.textSecondary, accent: Colors.dark.primary, primaryContainer: Colors.dark.primaryContainer, onPrimaryContainer: Colors.dark.onPrimaryContainer, tertiary: Colors.dark.tertiary };
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const profileSheetRef = useRef<ComponentRef<typeof BottomSheetModal> | null>(null);
-  const [offlineMode, setOfflineMode] = useState(false);
   const [homeTracks, setHomeTracks] = useState<Track[]>(tracks);
-  const { activeTrack, playing, selectTrack, setPlaying, togglePlayback } = usePlayer();
+  const { activeTrack, currentTime, duration, playing, selectTrack, setPlaying, togglePlayback } = usePlayer();
 
   useEffect(() => {
     let mounted = true;
     void getPopularYouTube().then((popularTracks) => {
-      if (mounted && popularTracks.length > 0) setHomeTracks(popularTracks);
+      if (mounted && popularTracks.length > 0) {
+        const unique = [...tracks, ...popularTracks].filter((track, index, list) => list.findIndex((item) => item.id === track.id) === index);
+        setHomeTracks(unique.slice(0, 12));
+      }
     }).catch(() => {
       // The curated tracks keep the home screen useful when the API is unavailable.
     });
@@ -46,7 +45,7 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 110 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View><Text style={styles.kicker}>YOUR LIBRARY</Text><Text style={styles.greeting}>Good evening</Text></View>
-          <Pressable onPress={() => profileSheetRef.current?.present()} style={styles.avatar} accessibilityLabel="Open profile"><Text style={styles.avatarText}>G</Text></Pressable>
+          <SymbolView name={{ ios: 'music.note.house.fill', android: 'library_music', web: 'library_music' }} tintColor={colors.accent} size={28} />
         </View>
 
         <SearchBar onPress={() => router.push('/explore')} />
@@ -81,17 +80,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} playing={playing} onToggle={() => { if (playing) togglePlayback(); else playTrack(activeTrack); }} onOpen={() => playTrack(activeTrack)} /></View>
-      <BottomSheetModal ref={profileSheetRef} snapPoints={['44%']} backgroundStyle={styles.sheetBackground} handleIndicatorStyle={styles.sheetHandle}>
-        <BottomSheetView style={styles.profileSheet}>
-          <Text style={styles.profileTitle}>Geet Music</Text>
-          <Text style={styles.profileSubtitle}>Your listening space</Text>
-          <Divider style={styles.divider} />
-          <List.Item title="Offline mode" description="Keep the interface ready without a connection" left={(props) => <List.Icon {...props} icon="download" />} right={() => <Switch value={offlineMode} onValueChange={setOfflineMode} />} />
-          <List.Item title="Playback & data" description="YouTube playback settings" left={(props) => <List.Icon {...props} icon="tune-variant" />} />
-          <Button mode="contained-tonal" onPress={() => profileSheetRef.current?.dismiss()} style={styles.doneButton}>Done</Button>
-        </BottomSheetView>
-      </BottomSheetModal>
+      <View style={[styles.playerDock, { bottom: insets.bottom + 78 }]}><MiniPlayer track={activeTrack} currentTime={currentTime} duration={duration} playing={playing} onToggle={() => { if (playing) togglePlayback(); else playTrack(activeTrack); }} onOpen={() => playTrack(activeTrack)} /></View>
     </View>
   );
 }
@@ -103,12 +92,9 @@ function SectionHeader({ title, action }: { title: string; action: string }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  kicker: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }, greeting: { color: colors.text, fontSize: 32, lineHeight: 38, fontWeight: '800', marginTop: 5 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: '#21152E', fontSize: 18, fontWeight: '800' },
-  hero: { height: 306, overflow: 'hidden', borderRadius: 28, backgroundColor: colors.surfaceHighest, marginBottom: 32 }, heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8, 24, 22, 0.56)' }, heroContent: { flex: 1, justifyContent: 'flex-end', padding: 22 },
-  heroBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(120, 214, 200, 0.2)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, marginBottom: 12 }, heroBadgeText: { color: colors.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1.1 }, heroTitle: { color: '#F3FFFC', fontSize: 27, lineHeight: 32, fontWeight: '800', maxWidth: 260 }, heroSubtitle: { color: '#D5E4E0', fontSize: 14, lineHeight: 20, marginTop: 7, maxWidth: 275 },
-  heroButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.accent, paddingVertical: 11, paddingHorizontal: 16, borderRadius: 18, marginTop: 18 }, heroButtonText: { color: '#21152E', fontSize: 13, fontWeight: '800' }, pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
+  kicker: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.7 }, greeting: { color: colors.text, fontSize: 34, lineHeight: 40, fontWeight: '800', marginTop: 5 },
+  hero: { height: 306, overflow: 'hidden', borderRadius: 36, backgroundColor: colors.surfaceHighest, marginBottom: 32 }, heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8, 24, 22, 0.48)' }, heroContent: { flex: 1, justifyContent: 'flex-end', padding: 24 },
+  heroBadge: { alignSelf: 'flex-start', backgroundColor: colors.primaryContainer, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, marginBottom: 12 }, heroBadgeText: { color: colors.onPrimaryContainer, fontSize: 10, fontWeight: '800', letterSpacing: 1.1 }, heroTitle: { color: '#F3FFFC', fontSize: 29, lineHeight: 34, fontWeight: '800', maxWidth: 280 }, heroSubtitle: { color: '#D5E4E0', fontSize: 14, lineHeight: 20, marginTop: 7, maxWidth: 275 }, heroButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primaryContainer, paddingVertical: 12, paddingHorizontal: 17, borderRadius: 18, marginTop: 18 }, heroButtonText: { color: colors.onPrimaryContainer, fontSize: 13, fontWeight: '800' }, pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }, sectionTitle: { color: colors.text, fontSize: 21, fontWeight: '800' }, sectionAction: { color: colors.accent, fontSize: 13, fontWeight: '700' }, horizontalRow: { gap: 16, paddingBottom: 32 }, songList: { gap: 4, marginBottom: 28 },
   resumeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: Colors.dark.outline }, resumeIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, moodCopy: { flex: 1, gap: 3 }, moodTitle: { color: colors.text, fontSize: 15, fontWeight: '700' }, moodSubtitle: { color: colors.muted, fontSize: 12 }, playerDock: { position: 'absolute', left: 12, right: 12 },
-  sheetBackground: { backgroundColor: colors.surface }, sheetHandle: { backgroundColor: Colors.dark.outline }, profileSheet: { padding: 24 }, profileTitle: { color: colors.text, fontSize: 25, fontWeight: '800' }, profileSubtitle: { color: colors.muted, marginTop: 4 }, divider: { marginVertical: 14 }, doneButton: { marginTop: 16 },
 });

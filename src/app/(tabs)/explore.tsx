@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ const colors = {
   surfaceHighest: Colors.dark.surfaceHighest, text: Colors.dark.text, muted: Colors.dark.textSecondary,
   accent: Colors.dark.primary, accentText: Colors.dark.onPrimary, outline: Colors.dark.outline, error: '#FFB4AB',
 };
-const suggestions = ['Chill', 'Focus', 'New releases', 'Adele', 'Afrobeats'];
+const suggestions = ['New releases', 'Chill', 'Focus', 'Adele', 'Afrobeats'];
 
 function openTrack(track: Track, selectTrack: (track: Track) => void, setPlaying: (playing: boolean) => void) {
   selectTrack(track);
@@ -31,12 +31,13 @@ export default function ExploreScreen() {
   const [results, setResults] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const searchStarted = useRef(false);
   const heading = useMemo(() => searchedQuery ? `Results for “${searchedQuery}”` : 'Trending music', [searchedQuery]);
 
   useEffect(() => {
     let mounted = true;
     void getPopularYouTube().then((popularTracks) => {
-      if (mounted) setResults(popularTracks.length > 0 ? popularTracks : tracks);
+      if (mounted && !searchStarted.current) setResults(popularTracks.length > 0 ? popularTracks : tracks);
     }).catch(() => {
       if (mounted) { setResults(tracks); setError('Live trends are unavailable, so your starter picks are shown.'); }
     }).finally(() => { if (mounted) setLoading(false); });
@@ -45,7 +46,8 @@ export default function ExploreScreen() {
 
   const runSearch = async (value = query) => {
     const nextQuery = value.trim();
-    if (!nextQuery || loading) return;
+    if (!nextQuery) return;
+    searchStarted.current = true;
     setQuery(nextQuery); setSearchedQuery(nextQuery); setLoading(true); setError('');
     try { setResults(await searchYouTube(nextQuery)); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Search failed. Check your connection and try again.'); }
@@ -72,7 +74,7 @@ export default function ExploreScreen() {
           <SymbolView name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }} tintColor={colors.muted} size={21} />
           <TextInput value={query} onChangeText={setQuery} onSubmitEditing={() => void runSearch()} placeholder="Songs, artists, albums" placeholderTextColor={colors.muted} style={styles.input} returnKeyType="search" accessibilityLabel="Search YouTube music" />
           {query.length > 0 && <Pressable onPress={clearSearch} hitSlop={8} accessibilityLabel="Clear search"><SymbolView name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }} tintColor={colors.muted} size={19} /></Pressable>}
-          <Pressable onPress={() => void runSearch()} disabled={!query.trim() || loading} style={({ pressed }) => [styles.searchButton, (!query.trim() || loading) && styles.disabled, pressed && styles.pressed]} accessibilityLabel="Search"><SymbolView name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }} tintColor={colors.accentText} size={18} /></Pressable>
+          <Pressable onPress={() => void runSearch()} disabled={!query.trim()} style={({ pressed }) => [styles.searchButton, !query.trim() && styles.disabled, pressed && styles.pressed]} accessibilityLabel="Search"><SymbolView name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }} tintColor={colors.accentText} size={18} /></Pressable>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>

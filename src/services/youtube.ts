@@ -26,6 +26,9 @@ type PopularResponse = {
   error?: { message?: string };
 };
 
+const cache = new Map<string, { expires: number; tracks: Track[] }>();
+const CACHE_TTL = 5 * 60 * 1000;
+
 function getApiKey() {
   const apiKey = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY;
   if (!apiKey) {
@@ -35,32 +38,39 @@ function getApiKey() {
 }
 
 export async function searchYouTube(query: string): Promise<Track[]> {
+  const cacheKey = `search:${query.trim().toLowerCase()}`;
+  const cached = cache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cached.tracks;
   const apiKey = getApiKey();
 
   const params = new URLSearchParams({
     part: 'snippet',
     q: `${query} music`,
     type: 'video',
-    maxResults: '15',
+    maxResults: '20',
     videoEmbeddable: 'true',
     videoSyndicated: 'true',
     key: apiKey,
   });
-  const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
+  const response = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
   const data = (await response.json()) as SearchResponse;
 
   if (!response.ok) {
     throw new Error(data.error?.message ?? 'YouTube search failed.');
   }
 
-  return (data.items ?? []).flatMap((item) => {
+  const result = (data.items ?? []).flatMap((item) => {
     const videoId = item.id?.videoId;
     if (!videoId) return [];
     return [toTrack(videoId, item.snippet)];
   });
+  cache.set(cacheKey, { expires: Date.now() + CACHE_TTL, tracks: result });
+  return result;
 }
 
 export async function getPopularYouTube(): Promise<Track[]> {
+  const cached = cache.get('popular');
+  if (cached && cached.expires > Date.now()) return cached.tracks;
   const apiKey = getApiKey();
   const params = new URLSearchParams({
     part: 'snippet',
@@ -70,14 +80,30 @@ export async function getPopularYouTube(): Promise<Track[]> {
     maxResults: '10',
     key: apiKey,
   });
-  const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
+  const response = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
   const data = (await response.json()) as PopularResponse;
 
   if (!response.ok) {
     throw new Error(data.error?.message ?? 'Could not load popular music.');
   }
 
-  return (data.items ?? []).flatMap((item) => item.id ? [toTrack(item.id, item.snippet)] : []);
+  const result = (data.items ?? []).flatMap((item) => item.id ? [toTrack(item.id, item.snippet)] : []);
+  cache.set('popular', { expires: Date.now() + CACHE_TTL, tracks: result });
+  return result;
+}
+
+export async function getNewMusic(): Promise<Track[]> {
+  return searchYouTube('new music 2026 official audio');
+}
+
+async function fetchWithTimeout(url: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function toTrack(videoId: string, snippet?: VideoSnippet): Track {

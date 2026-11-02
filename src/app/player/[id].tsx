@@ -25,7 +25,7 @@ export default function PlayerScreen() {
   }>();
   const insets = useSafeAreaInsets();
   const playerRef = useRef<YoutubeIframeRef | null>(null);
-  const { activeTrack, queue, selectTrack, playNext, playPrevious, playing, setPlaying, registerController } = usePlayer();
+  const { activeTrack, currentTime, duration, queue, selectTrack, playNext, playPrevious, playing, setPlayback, setPlaying, registerController, seekTo, shuffleEnabled, toggleShuffle } = usePlayer();
   const fallbackTrack = tracks.find((item) => item.id === params.id) ?? tracks[0];
   const routeTrack = useMemo(() => ({
     ...fallbackTrack,
@@ -40,8 +40,6 @@ export default function PlayerScreen() {
   }), [fallbackTrack, params.artist, params.artwork, params.duration, params.id, params.title, params.videoId]);
   const track = activeTrack;
   const [hasError, setHasError] = useState(false);
-  const [progressState, setProgressState] = useState({ trackId: '', value: 0 });
-  const [durationState, setDurationState] = useState({ trackId: '', value: 0 });
   const [progressWidth, setProgressWidth] = useState(1);
   const queueSheetRef = useRef<ComponentRef<typeof BottomSheetModal> | null>(null);
   const lyricsSheetRef = useRef<ComponentRef<typeof BottomSheetModal> | null>(null);
@@ -55,6 +53,7 @@ export default function PlayerScreen() {
       play: () => setPlaying(true),
       pause: () => setPlaying(false),
       toggle: () => setPlaying((current) => !current),
+      seekTo: (seconds) => playerRef.current?.seekTo(seconds, true),
     });
     return () => registerController(null);
   }, [registerController, setPlaying]);
@@ -66,8 +65,7 @@ export default function PlayerScreen() {
         void Promise.all([playerRef.current?.getCurrentTime(), playerRef.current?.getDuration()])
           .then(([currentTime, currentDuration]) => {
             if (typeof currentTime === 'number' && typeof currentDuration === 'number' && currentDuration > 0) {
-              setProgressState({ trackId: track.id, value: Math.min(currentTime / currentDuration, 1) });
-              setDurationState({ trackId: track.id, value: currentDuration });
+              setPlayback(currentTime, currentDuration);
             }
           });
       }, 500);
@@ -75,15 +73,15 @@ export default function PlayerScreen() {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [playing, track.id]);
+  }, [playing, setPlayback]);
 
   const handleStateChange = useCallback((state: PLAYER_STATES) => {
     if (state === PLAYER_STATES.PLAYING) setPlaying(true);
     if (state === PLAYER_STATES.PAUSED || state === PLAYER_STATES.ENDED) setPlaying(false);
-  }, [setPlaying]);
+    if (state === PLAYER_STATES.ENDED) playNext();
+  }, [playNext, setPlaying]);
 
-  const progress = progressState.trackId === track.id ? progressState.value : 0;
-  const duration = durationState.trackId === track.id ? durationState.value : 0;
+  const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
   const displayedDuration = duration > 0 ? formatTime(duration) : track.duration;
 
   return (
@@ -103,13 +101,13 @@ export default function PlayerScreen() {
           <Pressable onPress={() => lyricsSheetRef.current?.present()} hitSlop={12} accessibilityLabel="Open lyrics"><SymbolView name={{ ios: 'quote.bubble', android: 'lyrics', web: 'lyrics' }} tintColor={colors.primary} size={25} /></Pressable>
         </View>
         <View style={styles.progress}>
-          <Pressable onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)} onPress={(event) => { if (duration > 0) { const nextProgress = Math.max(0, Math.min(event.nativeEvent.locationX / progressWidth, 1)); playerRef.current?.seekTo(nextProgress * duration, true); setProgressState({ trackId: track.id, value: nextProgress }); } }} style={styles.progressTrack}>
+          <Pressable onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)} onPress={(event) => { if (duration > 0) { const nextProgress = Math.max(0, Math.min(event.nativeEvent.locationX / progressWidth, 1)); seekTo(nextProgress * duration); setPlayback(nextProgress * duration, duration); } }} style={styles.progressTrack}>
             <View style={[styles.progressValue, { width: `${progress * 100}%` }]} />
           </Pressable>
           <View style={styles.timeRow}><Text style={styles.time}>{formatTime(progress * duration)}</Text><Text style={styles.time}>{displayedDuration}</Text></View>
         </View>
         <View style={styles.controls}>
-          <Pressable accessibilityLabel="Shuffle" hitSlop={12}><SymbolView name={{ ios: 'shuffle', android: 'shuffle', web: 'shuffle' }} tintColor={colors.textSecondary} size={22} /></Pressable>
+          <Pressable accessibilityLabel={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'} onPress={toggleShuffle} hitSlop={12}><SymbolView name={{ ios: 'shuffle', android: 'shuffle', web: 'shuffle' }} tintColor={shuffleEnabled ? colors.primary : colors.textSecondary} size={22} /></Pressable>
           <Pressable accessibilityLabel="Previous song" onPress={playPrevious} hitSlop={12}><SymbolView name={{ ios: 'backward.end.fill', android: 'skip_previous', web: 'skip_previous' }} tintColor={colors.text} size={29} /></Pressable>
           <Pressable accessibilityLabel={playing ? 'Pause' : 'Play'} onPress={() => setPlaying(!playing)} style={styles.playButton}>
             <SymbolView name={{ ios: playing ? 'pause.fill' : 'play.fill', android: playing ? 'pause' : 'play_arrow', web: playing ? 'pause' : 'play_arrow' }} tintColor={colors.onPrimary} size={30} />
@@ -123,6 +121,7 @@ export default function PlayerScreen() {
         ref={playerRef}
         height={200}
         width={200}
+        key={track.videoId}
         videoId={track.videoId}
         play={playing}
         forceAndroidAutoplay
@@ -130,7 +129,12 @@ export default function PlayerScreen() {
         webViewProps={{ allowsInlineMediaPlayback: true, mediaPlaybackRequiresUserAction: false }}
         onChangeState={handleStateChange}
         onError={() => setHasError(true)}
-        onReady={() => setHasError(false)}
+        onReady={() => {
+          setHasError(false);
+          void playerRef.current?.getDuration().then((nextDuration) => {
+            if (nextDuration > 0) setPlayback(currentTime, nextDuration);
+          });
+        }}
         viewContainerStyle={styles.playbackEngine}
         webViewStyle={styles.playbackWebView}
       />
@@ -141,7 +145,7 @@ export default function PlayerScreen() {
           {queue.map((item) => <Pressable key={item.id} onPress={() => { selectTrack(item); setPlaying(true); }} style={[styles.queueItem, item.id === track.id && styles.queueItemActive]}><Image source={item.artwork} style={styles.queueArtwork} /><View style={styles.queueCopy}><Text numberOfLines={1} style={styles.queueTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.queueArtist}>{item.artist}</Text></View>{item.id === track.id && <SymbolView name={{ ios: 'speaker.wave.2.fill', android: 'volume_up', web: 'volume_up' }} tintColor={colors.primary} size={18} />}</Pressable>)}
         </BottomSheetScrollView>
       </BottomSheetModal>
-      <LyricsSheet key={track.id} sheetRef={lyricsSheetRef} track={track} />
+      <LyricsSheet key={track.id} sheetRef={lyricsSheetRef} track={track} currentTime={currentTime} duration={duration} onSeek={seekTo} />
 
       <View style={{ height: insets.bottom + 10 }} />
     </View>

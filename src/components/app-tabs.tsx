@@ -27,6 +27,13 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="library">
+        <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          md="library_music"
+          sf="books.vertical.fill"
+        />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

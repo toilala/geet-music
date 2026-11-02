@@ -22,9 +22,9 @@ export function SongRow({ track, active, onPress }: { track: Track; active?: boo
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 78, padding: 9, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceHighest },
+  container: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 78, padding: 9, borderRadius: 26, backgroundColor: colors.surfaceHigh, borderWidth: 1, borderColor: colors.surfaceHighest },
   pressed: { opacity: 0.7 },
-  artwork: { width: 60, height: 60, borderRadius: 18, backgroundColor: colors.surfaceHighest },
+  artwork: { width: 60, height: 60, borderRadius: 20, backgroundColor: colors.surfaceHighest },
   copy: { flex: 1, gap: 4 },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   playingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'transparent' },
