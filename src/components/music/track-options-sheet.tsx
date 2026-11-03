@@ -30,7 +30,7 @@ export const TrackOptionsSheet = forwardRef<BottomSheetModal, Props>(({ track, o
         message: `Listen to "${track.title}" by ${track.artist} on Geet Music: https://www.youtube.com/watch?v=${track.videoId}`,
       });
     } catch {
-      // ignore
+
     }
   };
 
@@ -68,7 +68,7 @@ export const TrackOptionsSheet = forwardRef<BottomSheetModal, Props>(({ track, o
       backgroundStyle={styles.sheetBackground}
       handleIndicatorStyle={styles.sheetHandle}>
       <BottomSheetScrollView contentContainerStyle={styles.container}>
-        {/* Track preview */}
+
         <View style={styles.trackCard}>
           <Image source={track.artwork} style={styles.artwork} contentFit="cover" />
           <View style={styles.trackMeta}>
@@ -94,7 +94,7 @@ export const TrackOptionsSheet = forwardRef<BottomSheetModal, Props>(({ track, o
 
         <View style={styles.divider} />
 
-        {/* Action items */}
+
         <Pressable onPress={handleStartRadio} style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}>
           <View style={styles.actionIcon}>
             <SymbolView name={{ ios: 'antenna.radiowaves.left.and.right', android: 'radio', web: 'radio' }} tintColor={colors.primary} size={22} />

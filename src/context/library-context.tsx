@@ -40,7 +40,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     'Adele',
   ]);
 
-  // Load from AsyncStorage
+
   useEffect(() => {
     let mounted = true;
     void Promise.all([
@@ -54,28 +54,28 @@ export function LibraryProvider({ children }: PropsWithChildren) {
         try {
           setLikedTracks(JSON.parse(likedRaw));
         } catch {
-          // ignore corrupted data
+
         }
       }
       if (playlistsRaw) {
         try {
           setPlaylists(JSON.parse(playlistsRaw));
         } catch {
-          // ignore
+
         }
       }
       if (historyRaw) {
         try {
           setHistory(JSON.parse(historyRaw));
         } catch {
-          // ignore
+
         }
       }
       if (searchRaw) {
         try {
           setSearchHistory(JSON.parse(searchRaw));
         } catch {
-          // ignore
+
         }
       }
     });
@@ -93,7 +93,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(12);
     } catch {
-      // Haptics fallback
+
     }
     setLikedTracks((current) => {
       const exists = current.some((item) => item.id === track.id);
@@ -107,7 +107,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(10);
     } catch {
-      // fallback
+
     }
     const newPlaylist: Playlist = {
       id: `playlist-${Date.now()}`,
@@ -130,7 +130,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(10);
     } catch {
-      // fallback
+
     }
     setPlaylists((current) => {
       const updated = current.map((pl) => {
@@ -174,7 +174,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(15);
     } catch {
-      // fallback
+
     }
     setPlaylists((current) => {
       const updated = current.filter((pl) => pl.id !== playlistId);

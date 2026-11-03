@@ -5,6 +5,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
+  Animated,
   Pressable,
   Share,
   StyleSheet,
@@ -46,7 +47,7 @@ export default function PlayerScreen() {
     playNext,
     playPrevious,
     playing,
-    setPlaying,
+    togglePlayback,
     seekTo,
     setPlayback,
     shuffleEnabled,
@@ -63,7 +64,7 @@ export default function PlayerScreen() {
 
   const { isLiked, toggleLike } = useLibrary();
 
-  // Route track fallback
+
   const fallbackTrack = tracks.find((item) => item.id === params.id) ?? tracks[0];
   const routeTrack = useMemo(
     () => ({
@@ -93,22 +94,39 @@ export default function PlayerScreen() {
   const track = activeTrack.id === routeTrack.id ? activeTrack : routeTrack;
   const liked = isLiked(track.id);
 
-  // Sheets
+
   const queueSheetRef = useRef<BottomSheetModal>(null);
   const lyricsSheetRef = useRef<BottomSheetModal>(null);
   const sleepSheetRef = useRef<BottomSheetModal>(null);
   const optionsSheetRef = useRef<BottomSheetModal>(null);
   const playlistSheetRef = useRef<BottomSheetModal>(null);
 
-  // Progress bar dragging
+
   const [progressWidth, setProgressWidth] = useState(1);
   const [seekingPosition] = useState<number | null>(null);
+  const [artworkScale] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     if (routeTrack.id !== activeTrack.id) {
       selectTrack(routeTrack);
     }
   }, [routeTrack, activeTrack.id, selectTrack]);
+
+  useEffect(() => {
+    if (!playing) {
+      artworkScale.stopAnimation();
+      Animated.spring(artworkScale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 4 }).start();
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(artworkScale, { toValue: 1.018, duration: 1800, useNativeDriver: true }),
+        Animated.timing(artworkScale, { toValue: 1, duration: 1800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [artworkScale, playing]);
 
   const displayTime = seekingPosition !== null ? seekingPosition : currentTime;
   const progress = duration > 0 ? Math.min(displayTime / duration, 1) : 0;
@@ -129,13 +147,13 @@ export default function PlayerScreen() {
         message: `Listening to "${track.title}" by ${track.artist} on Geet Music! https://www.youtube.com/watch?v=${track.videoId}`,
       });
     } catch {
-      // ignore
+
     }
   };
 
   return (
     <View style={styles.screen}>
-      {/* Top Header */}
+
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable
           onPress={() => router.back()}
@@ -149,7 +167,7 @@ export default function PlayerScreen() {
           />
         </Pressable>
 
-        {/* Song / Video toggle pill (YouTube Music signature feature) */}
+
         <View style={styles.togglePill}>
           <Pressable
             onPress={() => isVideoMode && toggleVideoMode()}
@@ -177,8 +195,8 @@ export default function PlayerScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Album Artwork / Video Container */}
-        <View style={[styles.artworkContainer, { width: ARTWORK_SIZE, height: ARTWORK_SIZE }]}>
+
+        <Animated.View style={[styles.artworkContainer, { width: ARTWORK_SIZE, height: ARTWORK_SIZE, transform: [{ scale: artworkScale }] }]}>
           <Image
             source={track.artwork}
             style={[styles.artworkHero, { width: ARTWORK_SIZE, height: ARTWORK_SIZE }]}
@@ -195,9 +213,9 @@ export default function PlayerScreen() {
               <Text style={styles.videoBadge}>Now streaming audio & video</Text>
             </View>
           )}
-        </View>
+        </Animated.View>
 
-        {/* Track Title, Artist, & Like */}
+
         <View style={styles.trackInfo}>
           <View style={styles.metaCopy}>
             <Text numberOfLines={1} style={styles.title}>
@@ -224,7 +242,7 @@ export default function PlayerScreen() {
           </Pressable>
         </View>
 
-        {/* Scrub Slider */}
+
         <View style={styles.progressSection}>
           <Pressable
             onLayout={(e) => setProgressWidth(e.nativeEvent.layout.width)}
@@ -240,9 +258,9 @@ export default function PlayerScreen() {
           </View>
         </View>
 
-        {/* Transport Controls (M3 Expressive) */}
+
         <View style={styles.controlsRow}>
-          {/* Shuffle */}
+
           <Pressable
             onPress={toggleShuffle}
             hitSlop={14}
@@ -255,7 +273,7 @@ export default function PlayerScreen() {
             />
           </Pressable>
 
-          {/* Previous */}
+
           <Pressable
             onPress={playPrevious}
             hitSlop={14}
@@ -268,9 +286,9 @@ export default function PlayerScreen() {
             />
           </Pressable>
 
-          {/* Play / Pause FAB */}
+
           <Pressable
-            onPress={() => setPlaying(!playing)}
+            onPress={togglePlayback}
             accessibilityLabel={playing ? 'Pause' : 'Play'}
             style={({ pressed }) => [styles.playFab, pressed && styles.pressed]}>
             <SymbolView
@@ -284,7 +302,7 @@ export default function PlayerScreen() {
             />
           </Pressable>
 
-          {/* Next */}
+
           <Pressable
             onPress={playNext}
             hitSlop={14}
@@ -297,7 +315,7 @@ export default function PlayerScreen() {
             />
           </Pressable>
 
-          {/* Repeat */}
+
           <Pressable
             onPress={toggleRepeat}
             hitSlop={14}
@@ -314,9 +332,9 @@ export default function PlayerScreen() {
           </Pressable>
         </View>
 
-        {/* Secondary Action Pills */}
+
         <View style={styles.secondaryActions}>
-          {/* Queue */}
+
           <Pressable
             onPress={() => queueSheetRef.current?.present()}
             style={styles.actionCapsule}>
@@ -328,7 +346,7 @@ export default function PlayerScreen() {
             <Text style={styles.actionCapsuleText}>Queue ({queue.length})</Text>
           </Pressable>
 
-          {/* Lyrics */}
+
           <Pressable
             onPress={() => lyricsSheetRef.current?.present()}
             style={styles.actionCapsule}>
@@ -340,7 +358,7 @@ export default function PlayerScreen() {
             <Text style={styles.actionCapsuleText}>Lyrics</Text>
           </Pressable>
 
-          {/* Sleep Timer */}
+
           <Pressable
             onPress={() => sleepSheetRef.current?.present()}
             style={[styles.actionCapsule, sleepTimerRemaining !== null && styles.actionCapsuleActive]}>
@@ -358,7 +376,7 @@ export default function PlayerScreen() {
             </Text>
           </Pressable>
 
-          {/* Share */}
+
           <Pressable onPress={handleShare} style={styles.actionCapsule}>
             <SymbolView
               name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }}
@@ -373,7 +391,7 @@ export default function PlayerScreen() {
         )}
       </View>
 
-      {/* Up Next Queue Sheet */}
+
       <BottomSheetModal
         ref={queueSheetRef}
         snapPoints={['65%']}
@@ -400,7 +418,6 @@ export default function PlayerScreen() {
                   <Pressable
                     onPress={() => {
                       selectTrack(item);
-                      setPlaying(true);
                       queueSheetRef.current?.dismiss();
                     }}
                     style={styles.queueRowMain}>
@@ -438,7 +455,7 @@ export default function PlayerScreen() {
         </BottomSheetScrollView>
       </BottomSheetModal>
 
-      {/* Synced Lyrics Sheet */}
+
       <LyricsSheet
         key={track.id}
         sheetRef={lyricsSheetRef}
@@ -448,17 +465,17 @@ export default function PlayerScreen() {
         onSeek={seekTo}
       />
 
-      {/* Sleep Timer Sheet */}
+
       <SleepTimerSheet ref={sleepSheetRef} />
 
-      {/* Track Options Sheet */}
+
       <TrackOptionsSheet
         ref={optionsSheetRef}
         track={track}
         onOpenPlaylistModal={() => playlistSheetRef.current?.present()}
       />
 
-      {/* Add To Playlist Sheet */}
+
       <AddToPlaylistSheet ref={playlistSheetRef} track={track} />
     </View>
   );

@@ -60,7 +60,7 @@ export default function ExploreScreen() {
   const optionsSheetRef = useRef<BottomSheetModal>(null);
   const playlistSheetRef = useRef<BottomSheetModal>(null);
 
-  // Load trending starter results
+
   useEffect(() => {
     let mounted = true;
     void getPopularYouTube().then((popular) => {
@@ -75,7 +75,7 @@ export default function ExploreScreen() {
     };
   }, []);
 
-  // Fetch live suggestions on typing
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!query.trim() || query.trim() === activeSearch) {
@@ -153,13 +153,13 @@ export default function ExploreScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        {/* Title */}
+
         <View style={styles.header}>
           <Text style={styles.eyebrow}>SEARCH & EXPLORE</Text>
           <Text style={styles.title}>Find what you love</Text>
         </View>
 
-        {/* Material 3 Search Bar */}
+
         <View style={styles.searchBar}>
           <SymbolView
             name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
@@ -196,7 +196,7 @@ export default function ExploreScreen() {
           </Pressable>
         </View>
 
-        {/* Live Suggestions Dropdown */}
+
         {suggestions.length > 0 && (
           <View style={styles.suggestionsBox}>
             {suggestions.map((suggestion) => (
@@ -217,7 +217,7 @@ export default function ExploreScreen() {
           </View>
         )}
 
-        {/* Recent Search History Chips */}
+
         {searchHistory.length > 0 && !activeSearch && (
           <View style={styles.historySection}>
             <Text style={styles.sectionTitle}>Recent searches</Text>
@@ -245,7 +245,7 @@ export default function ExploreScreen() {
           </View>
         )}
 
-        {/* Explore Genres & Moods Grid (when not actively searching) */}
+
         {!activeSearch && (
           <View style={styles.genresSection}>
             <Text style={styles.sectionTitle}>Browse categories</Text>
@@ -274,7 +274,7 @@ export default function ExploreScreen() {
           </View>
         )}
 
-        {/* Results Header */}
+
         <View style={styles.resultsHeader}>
           <View>
             <Text style={styles.resultsTitle}>
@@ -292,7 +292,7 @@ export default function ExploreScreen() {
           </View>
         ) : null}
 
-        {/* Results or Loading */}
+
         {loading ? (
           <View style={styles.loaderBox}>
             <ActivityIndicator color={colors.primary} size="large" />
@@ -313,7 +313,7 @@ export default function ExploreScreen() {
         )}
       </ScrollView>
 
-      {/* Floating MiniPlayer */}
+
       <View style={[styles.playerDock, { bottom: insets.bottom + 65 }]}>
         <MiniPlayer
           track={activeTrack}
@@ -338,14 +338,14 @@ export default function ExploreScreen() {
         />
       </View>
 
-      {/* Track Options Sheet */}
+
       <TrackOptionsSheet
         ref={optionsSheetRef}
         track={optionsTrack}
         onOpenPlaylistModal={openAddToPlaylist}
       />
 
-      {/* Add To Playlist Sheet */}
+
       <AddToPlaylistSheet ref={playlistSheetRef} track={playlistTrack} />
     </View>
   );

@@ -100,7 +100,7 @@ export default function LibraryScreen() {
           { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
         ]}
         showsVerticalScrollIndicator={false}>
-        {/* Header */}
+
         <View style={styles.header}>
           <View>
             <Text style={styles.eyebrow}>YOUR SPACE</Text>
@@ -117,7 +117,7 @@ export default function LibraryScreen() {
           </Pressable>
         </View>
 
-        {/* Filter Pills */}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPills}>
           {(
             [
@@ -141,7 +141,7 @@ export default function LibraryScreen() {
           ))}
         </ScrollView>
 
-        {/* Create Playlist Inline Form */}
+
         {isCreatingPlaylist && (
           <View style={styles.createCard}>
             <Text style={styles.createTitle}>New Playlist</Text>
@@ -167,7 +167,7 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {/* Detail view if a specific playlist is opened */}
+
         {selectedPlaylist ? (
           <View style={styles.playlistDetail}>
             <Pressable onPress={() => setSelectedPlaylist(null)} style={styles.backBtn}>
@@ -241,10 +241,10 @@ export default function LibraryScreen() {
           </View>
         ) : (
           <>
-            {/* Quick Cards Grid (All tab) */}
+
             {activeTab === 'all' && (
               <View style={styles.quickGrid}>
-                {/* Liked Card */}
+
                 <Pressable
                   onPress={() => setActiveTab('liked')}
                   style={({ pressed }) => [styles.quickCard, pressed && styles.pressed]}>
@@ -259,7 +259,7 @@ export default function LibraryScreen() {
                   <Text style={styles.cardSubtitle}>{likedTracks.length} auto playlist</Text>
                 </Pressable>
 
-                {/* History Card */}
+
                 <Pressable
                   onPress={() => setActiveTab('history')}
                   style={({ pressed }) => [styles.quickCard, pressed && styles.pressed]}>
@@ -276,7 +276,7 @@ export default function LibraryScreen() {
               </View>
             )}
 
-            {/* Playlists Section */}
+
             {(activeTab === 'all' || activeTab === 'playlists') && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -332,7 +332,7 @@ export default function LibraryScreen() {
               </View>
             )}
 
-            {/* Liked Songs Section */}
+
             {(activeTab === 'all' || activeTab === 'liked') && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -366,7 +366,7 @@ export default function LibraryScreen() {
               </View>
             )}
 
-            {/* History Section */}
+
             {(activeTab === 'all' || activeTab === 'history') && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -402,7 +402,7 @@ export default function LibraryScreen() {
         )}
       </ScrollView>
 
-      {/* Floating MiniPlayer */}
+
       <View style={[styles.playerDock, { bottom: insets.bottom + 65 }]}>
         <MiniPlayer
           track={activeTrack}
@@ -427,14 +427,14 @@ export default function LibraryScreen() {
         />
       </View>
 
-      {/* Track Options Sheet */}
+
       <TrackOptionsSheet
         ref={optionsSheetRef}
         track={optionsTrack}
         onOpenPlaylistModal={openAddToPlaylist}
       />
 
-      {/* Add To Playlist Sheet */}
+
       <AddToPlaylistSheet ref={playlistSheetRef} track={playlistTrack} />
     </View>
   );

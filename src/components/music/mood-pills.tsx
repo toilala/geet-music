@@ -26,7 +26,7 @@ export function MoodPills({ selectedMoodId, onSelectMood }: Props) {
               try {
                 Vibration.vibrate(8);
               } catch {
-                // fallback
+
               }
               onSelectMood(mood);
             }}

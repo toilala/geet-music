@@ -69,12 +69,9 @@ export async function searchYouTube(query: string): Promise<Track[]> {
           return result;
         }
       }
-    } catch (err) {
-      console.warn('[Geet YouTube] Official API search error, falling back to piped/curated:', err);
-    }
+    } catch {}
   }
 
-  // Fallback 1: Try public piped / invidious instance
   try {
     const pipedUrl = `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(trimmed + ' music')}&filter=videos`;
     const pipedResponse = await fetchWithTimeout(pipedUrl, 4000);
@@ -100,11 +97,8 @@ export async function searchYouTube(query: string): Promise<Track[]> {
         return pipedTracks;
       }
     }
-  } catch {
-    // Continue to local match
-  }
+  } catch {}
 
-  // Fallback 2: Local curated tracks fuzzy match
   const localMatches = tracks.filter((t) =>
     t.title.toLowerCase().includes(trimmed) ||
     t.artist.toLowerCase().includes(trimmed) ||
@@ -138,9 +132,7 @@ export async function getPopularYouTube(): Promise<Track[]> {
           return result;
         }
       }
-    } catch (err) {
-      console.warn('[Geet YouTube] Popular API error, returning curated tracks:', err);
-    }
+    } catch {}
   }
 
   return tracks;
@@ -163,11 +155,8 @@ export async function getSearchSuggestions(query: string): Promise<string[]> {
         return data[1].slice(0, 8);
       }
     }
-  } catch {
-    // Silently fallback
-  }
+  } catch {}
 
-  // Fallback suggestions from local tracks
   return tracks
     .filter((t) => t.title.toLowerCase().startsWith(trimmed.toLowerCase()) || t.artist.toLowerCase().startsWith(trimmed.toLowerCase()))
     .map((t) => `${t.title} - ${t.artist}`)
@@ -222,7 +211,6 @@ export function cleanTrackTitle(title: string): { title: string; artist?: string
     .replace(/\s*\|\s*(?:official|music video|lyrics?).*$/i, '')
     .trim();
 
-  // If format is "Artist - Title"
   const splitHyphen = cleaned.split(/\s+-\s+/);
   if (splitHyphen.length === 2) {
     return {

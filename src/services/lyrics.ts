@@ -29,9 +29,7 @@ export async function getLyrics(title: string, artist: string, duration?: number
       const match = matches.find((item) => item.syncedLyrics || item.plainLyrics);
       if (match) return parseResponse(match, 'LRCLIB search');
     }
-  } catch {
-    // Continue to the plain-lyrics provider.
-  }
+  } catch {}
 
   try {
     const plainResponse = await fetchWithTimeout(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(normalizedTitle)}`);

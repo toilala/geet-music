@@ -34,14 +34,14 @@ export default function HomeScreen() {
   const [loadingMood, setLoadingMood] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Selected track for options sheet
+
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
 
   const optionsSheetRef = useRef<BottomSheetModal>(null);
   const playlistSheetRef = useRef<BottomSheetModal>(null);
 
-  // Initial load
+
   useEffect(() => {
     let mounted = true;
     void getPopularYouTube()
@@ -59,7 +59,7 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Mood filter load
+
   useEffect(() => {
     if (selectedMood.id === 'all') return;
     let mounted = true;
@@ -95,7 +95,7 @@ export default function HomeScreen() {
         setHomeTracks(pop);
       }
     } catch {
-      // ignore
+
     } finally {
       setRefreshing(false);
     }
@@ -143,13 +143,13 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }>
-        {/* Expressive Header */}
+
         <ExpressiveHeader />
 
-        {/* Mood pills filter */}
+
         <MoodPills selectedMoodId={selectedMood.id} onSelectMood={handleSelectMood} />
 
-        {/* Dynamic Mood Section when mood != all */}
+
         {selectedMood.id !== 'all' ? (
           <View style={styles.moodSection}>
             <View style={styles.sectionHeader}>
@@ -180,7 +180,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {/* Featured Hero Banner */}
+
             <View style={styles.heroWrap}>
               <View style={styles.heroCard}>
                 <Image
@@ -219,7 +219,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Quick Picks / Listen Again */}
+
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Quick picks</Text>
@@ -234,7 +234,7 @@ export default function HomeScreen() {
               onOptionsPress={openOptions}
             />
 
-            {/* Curated Mixes / Albums */}
+
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Mixed for you</Text>
@@ -254,7 +254,7 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
 
-            {/* Trending Now / Top Charts */}
+
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Trending charts</Text>
@@ -277,7 +277,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Floating MiniPlayer */}
+
       <View style={[styles.playerDock, { bottom: insets.bottom + 65 }]}>
         <MiniPlayer
           track={activeTrack}
@@ -302,14 +302,14 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Track Options Sheet */}
+
       <TrackOptionsSheet
         ref={optionsSheetRef}
         track={optionsTrack}
         onOpenPlaylistModal={openAddToPlaylist}
       />
 
-      {/* Add To Playlist Sheet */}
+
       <AddToPlaylistSheet ref={playlistSheetRef} track={playlistTrack} />
     </View>
   );

@@ -46,13 +46,13 @@ type PlayerContextValue = {
   toggleRepeat: () => void;
   togglePlayback: () => void;
   registerController: (controller: PlayerController | null) => void;
-  // Advanced YouTube Music features
+
   addToQueue: (track: Track) => void;
   playNextInQueue: (track: Track) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   startRadio: (track: Track) => Promise<void>;
-  sleepTimerRemaining: number | null; // in seconds
+  sleepTimerRemaining: number | null;
   setSleepTimer: (minutes: number | null) => void;
   isVideoMode: boolean;
   toggleVideoMode: () => void;
@@ -76,7 +76,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
   const controllerRef = useRef<PlayerController | null>(null);
 
-  // Sleep timer interval
+
   useEffect(() => {
     if (sleepTimerRemaining === null) return;
 
@@ -98,7 +98,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(10);
     } catch {
-      // fallback
+
     }
     if (minutes === null || minutes <= 0) {
       setSleepTimerRemaining(null);
@@ -135,7 +135,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       const currentIndex = currentQueue.findIndex((item) => item.id === activeTrack.id);
 
       if (currentIndex === currentQueue.length - 1 && repeatMode === 'off') {
-        // Queue finished
+
         setPlaying(false);
         return currentQueue;
       }
@@ -153,7 +153,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   }, [activeTrack.id, repeatMode]);
 
   const playPrevious = useCallback(() => {
-    // If playing for more than 4 seconds, restart current track
+
     if (currentTime > 4) {
       controllerRef.current?.seekTo(0);
       setCurrentTime(0);
@@ -183,7 +183,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(8);
     } catch {
-      // fallback
+
     }
     controllerRef.current?.toggle();
   }, []);
@@ -210,12 +210,12 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(10);
     } catch {
-      // fallback
+
     }
     setShuffleEnabled((prev) => {
       const nextState = !prev;
       if (nextState) {
-        // Shuffle queue keeping active track first
+
         setQueue((curr) => {
           const others = curr.filter((t) => t.id !== activeTrack.id);
           for (let i = others.length - 1; i > 0; i--) {
@@ -225,7 +225,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
           return [activeTrack, ...others];
         });
       } else {
-        // Restore original queue order
+
         setQueue(originalQueue);
       }
       return nextState;
@@ -236,7 +236,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(10);
     } catch {
-      // fallback
+
     }
     setRepeatMode((prev) => {
       if (prev === 'off') return 'all';
@@ -253,7 +253,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     try {
       Vibration.vibrate(8);
     } catch {
-      // fallback
+
     }
     setQueue((curr) => [...curr, track]);
     setOriginalQueue((curr) => [...curr, track]);
@@ -264,7 +264,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       try {
         Vibration.vibrate(8);
       } catch {
-        // fallback
+
       }
       setQueue((curr) => {
         const index = curr.findIndex((t) => t.id === activeTrack.id);

@@ -106,7 +106,7 @@ export function MiniPlayer({
         </View>
       </View>
 
-      {/* Progress bar */}
+
       <View style={styles.progressTrack}>
         <View style={[styles.progressValue, { width: `${progress * 100}%` }]} />
       </View>

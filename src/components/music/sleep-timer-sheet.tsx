@@ -13,7 +13,7 @@ const TIMER_OPTIONS = [
   { label: '30 minutes', minutes: 30 },
   { label: '45 minutes', minutes: 45 },
   { label: '1 hour', minutes: 60 },
-  { label: 'End of song', minutes: -1 }, // special handling
+  { label: 'End of song', minutes: -1 },
 ];
 
 export const SleepTimerSheet = forwardRef<BottomSheetModal>((_, ref) => {
@@ -21,7 +21,7 @@ export const SleepTimerSheet = forwardRef<BottomSheetModal>((_, ref) => {
 
   const handleSelect = (minutes: number) => {
     if (minutes === -1) {
-      // Calculate remaining track duration
+
       const remainingSecs = Math.max(10, duration - currentTime);
       setSleepTimer(remainingSecs / 60);
     } else {

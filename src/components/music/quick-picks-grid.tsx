@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function QuickPicksGrid({ tracks, activeTrackId, isPlaying, onPlayTrack, onOptionsPress }: Props) {
-  // Take up to 8 tracks, arranged in 2 columns of 4
+
   const displayTracks = tracks.slice(0, 8);
 
   return (
