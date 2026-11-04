@@ -1,4 +1,5 @@
 import { parseLyric, type LyricLine } from 'lyric-kit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type LyricsResponse = {
   duration?: number;
@@ -12,6 +13,22 @@ export type LyricsPayload = {
   wordTimed: boolean;
   source: string;
 };
+
+export type LyricsProvider = 'auto' | 'lrclib' | 'lyrics-ovh';
+const LYRICS_PROVIDER_KEY = '@geet/lyrics-provider-v1';
+
+export async function getLyricsProvider(): Promise<LyricsProvider> {
+  try {
+    const value = await AsyncStorage.getItem(LYRICS_PROVIDER_KEY);
+    return value === 'lrclib' || value === 'lyrics-ovh' ? value : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+
+export async function setLyricsProvider(provider: LyricsProvider): Promise<void> {
+  await AsyncStorage.setItem(LYRICS_PROVIDER_KEY, provider);
+}
 
 // Embedded verified lyrics for top regional & Nepali hits (matching Screenshot 1: Lyrics from YouLyPlus)
 const VERIFIED_NEPALI_LYRICS: Record<string, string> = {
@@ -76,6 +93,7 @@ const VERIFIED_NEPALI_LYRICS: Record<string, string> = {
 
 export async function getLyrics(title: string, artist: string, duration?: number): Promise<LyricsPayload> {
   const normalizedTitle = cleanTitle(title).toLowerCase();
+  const provider = await getLyricsProvider();
 
   // 1. Check verified synced Nepali lyrics first (Instant & high-quality)
   for (const [key, lrc] of Object.entries(VERIFIED_NEPALI_LYRICS)) {
@@ -91,11 +109,34 @@ export async function getLyrics(title: string, artist: string, duration?: number
       (key.includes('machi') && normalizedTitle.includes('machi')) ||
       (key.includes('maya-ta') && normalizedTitle.includes('maya ta'))
     ) {
-      return parseContent(lrc.trim(), 'YouLyPlus', true);
+      return parseContent(lrc.trim(), 'Verified lyrics', true);
     }
   }
 
-  // 2. Query LRCLIB for synced/plain lyrics
+  // 2. Query real lyric providers in the selected order.
+  const providers: LyricsProvider[] =
+    provider === 'auto' ? ['lrclib', 'lyrics-ovh'] : [provider];
+  for (const selectedProvider of providers) {
+    const result =
+      selectedProvider === 'lrclib'
+        ? await getLrclibLyrics(title, artist, duration)
+        : await getLyricsOvh(title, artist, duration);
+    if (result) return result;
+  }
+
+  return {
+    lines: [],
+    synced: false,
+    wordTimed: false,
+    source: 'No lyrics provider found',
+  };
+}
+
+async function getLrclibLyrics(
+  title: string,
+  artist: string,
+  duration?: number
+): Promise<LyricsPayload | null> {
   const params = new URLSearchParams({ track_name: cleanTitle(title), artist_name: artist });
   if (duration && duration > 0) params.set('duration', String(Math.round(duration)));
 
@@ -104,7 +145,7 @@ export async function getLyrics(title: string, artist: string, duration?: number
     if (response.ok) {
       const data = (await response.json()) as LyricsResponse;
       if (data.syncedLyrics || data.plainLyrics) {
-        return parseResponse(data, 'YouLyPlus');
+        return parseResponse(data, 'LRCLIB', duration);
       }
     }
 
@@ -113,21 +154,39 @@ export async function getLyrics(title: string, artist: string, duration?: number
     if (searchResponse.ok) {
       const matches = (await searchResponse.json()) as LyricsResponse[];
       const match = matches.find((item) => item.syncedLyrics || item.plainLyrics);
-      if (match) return parseResponse(match, 'YouLyPlus');
+      if (match) return parseResponse(match, 'LRCLIB', duration);
     }
-  } catch {}
+  } catch {
+    return null;
+  }
+  return null;
+}
 
-  // 3. Fallback: Generate synced timing for the track so lyrics screen is never empty or dead
-  return generateHarmoniousLyrics(title, artist, duration || 240);
+async function getLyricsOvh(title: string, artist: string, duration?: number): Promise<LyricsPayload | null> {
+  try {
+    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(cleanTitle(title))}`;
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) return null;
+    const data = (await response.json()) as { lyrics?: string };
+    if (!data.lyrics?.trim()) return null;
+    return parseResponse(
+      { plainLyrics: data.lyrics },
+      'Lyrics.ovh',
+      duration
+    );
+  } catch {
+    return null;
+  }
 }
 
 export function lyricText(line: LyricLine) {
   return line.words.map((word) => word.word).join('').trim();
 }
 
-function parseResponse(data: LyricsResponse, source: string): LyricsPayload {
+function parseResponse(data: LyricsResponse, source: string, duration?: number): LyricsPayload {
   const synced = Boolean(data.syncedLyrics);
-  return parseContent(data.syncedLyrics ?? data.plainLyrics ?? '', source, synced);
+  const content = data.syncedLyrics ?? plainLyricsToLrc(data.plainLyrics ?? '', duration || 240);
+  return parseContent(content, source, synced);
 }
 
 function parseContent(content: string, source: string, synced: boolean): LyricsPayload {
@@ -136,33 +195,19 @@ function parseContent(content: string, source: string, synced: boolean): LyricsP
   return { lines, synced, wordTimed, source };
 }
 
-function generateHarmoniousLyrics(title: string, artist: string, durationSec: number): LyricsPayload {
-  const cleanT = cleanTitle(title);
-  const verses = [
-    `♪ ${cleanT} ♪`,
-    `Performed with passion by ${artist}`,
-    `हर पल तिम्रै सम्झनामा, यो मन हराउँछ`,
-    `आँखा बन्द गर्दा नि तिम्रो मुहार आउँछ`,
-    `गाउँदै छु तिम्रो लागि यो मिठो गीत`,
-    `तिमी नै हौ मेरो संसार, मेरो मीत`,
-    `सुर र तालमा बगीरहन्छ यो भावना`,
-    `सधैं-सधैं पूरा होस् तिम्रो सबै चाहना`,
-    `♪ ${cleanT} ♪`,
-  ];
-
-  const step = Math.max(8, Math.floor(durationSec / (verses.length + 1)));
-  const lrcLines = verses
-    .map((v, i) => {
-      const sec = (i + 1) * step;
+function plainLyricsToLrc(lyrics: string, durationSec: number): string {
+  const lines = lyrics.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const step = Math.max(4, durationSec / Math.max(lines.length, 1));
+  return lines
+    .map((line, i) => {
+      const sec = i * step;
       const m = Math.floor(sec / 60);
       const s = sec % 60;
       const mm = String(m).padStart(2, '0');
-      const ss = String(s).padStart(2, '0');
-      return `[${mm}:${ss}.00] ${v}`;
+      const ss = s.toFixed(2).padStart(5, '0');
+      return `[${mm}:${ss}] ${line}`;
     })
     .join('\n');
-
-  return parseContent(lrcLines, 'YouLyPlus', true);
 }
 
 async function fetchWithTimeout(url: string) {

@@ -24,6 +24,7 @@ import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
 import { tracks, type Playlist, type Track } from '@/data/music';
 import { getBottom50Tracks, getTop50Tracks } from '@/services/recommendations';
+import { getLyricsProvider, setLyricsProvider, type LyricsProvider } from '@/services/lyrics';
 
 const colors = Colors.dark;
 
@@ -59,6 +60,7 @@ export default function LibraryScreen() {
   const [bottom50Tracks, setBottom50Tracks] = useState<Track[]>([]);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [lyricsProvider, setLyricsProviderState] = useState<LyricsProvider>('auto');
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
@@ -69,6 +71,7 @@ export default function LibraryScreen() {
   useEffect(() => {
     void getTop50Tracks().then(setTop50Tracks);
     void getBottom50Tracks().then(setBottom50Tracks);
+    void getLyricsProvider().then(setLyricsProviderState);
   }, []);
 
   const handlePlay = (track: Track, queueList?: Track[]) => {
@@ -119,6 +122,24 @@ export default function LibraryScreen() {
   const openAddToPlaylist = (track: Track) => {
     setPlaylistTrack(track);
     playlistSheetRef.current?.present();
+  };
+
+  const openLyricsSettings = () => {
+    const options: { label: string; value: LyricsProvider }[] = [
+      { label: 'Automatic (LRCLIB, then Lyrics.ovh)', value: 'auto' },
+      { label: 'LRCLIB only', value: 'lrclib' },
+      { label: 'Lyrics.ovh only', value: 'lyrics-ovh' },
+    ];
+    Alert.alert('Lyrics provider', 'Choose where Geet Music should look for lyrics.', [
+      ...options.map((option) => ({
+        text: `${lyricsProvider === option.value ? '✓ ' : ''}${option.label}`,
+        onPress: () => {
+          setLyricsProviderState(option.value);
+          void setLyricsProvider(option.value);
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   // Render detail view for Liked, Top 50, Bottom 50, or Selected Playlist
@@ -194,6 +215,16 @@ export default function LibraryScreen() {
                 name={{ ios: 'clock.arrow.circlepath', android: 'history', web: 'history' }}
                 tintColor={colors.text}
                 size={21}
+              />
+            </Pressable>
+            <Pressable
+              style={styles.iconBtn}
+              onPress={openLyricsSettings}
+              accessibilityLabel="Lyrics settings">
+              <SymbolView
+                name={{ ios: 'music.note.list', android: 'lyrics', web: 'lyrics' }}
+                tintColor={colors.text}
+                size={20}
               />
             </Pressable>
             <Pressable style={styles.iconBtn}>

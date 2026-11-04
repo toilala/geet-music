@@ -238,7 +238,9 @@ export default function PlayerScreen() {
           </Animated.View>
         ) : (
           <View style={styles.lyricsContainer}>
-            <Text style={styles.lyricsProviderNotice}>Lyrics from YouLyPlus</Text>
+            <Text style={styles.lyricsProviderNotice}>
+              {lyricsData?.source ?? 'Looking for lyrics...'}
+            </Text>
             <ScrollView
               ref={lyricsScrollRef}
               showsVerticalScrollIndicator={false}
@@ -257,16 +259,15 @@ export default function PlayerScreen() {
                     </Pressable>
                   );
                 })
-              ) : (
+              ) : lyricsData ? (
                 <View style={styles.fallbackLyricsBox}>
                   <Text style={styles.fallbackLyricsTitle}>{track.title}</Text>
                   <Text style={styles.fallbackLyricsArtist}>{track.artist}</Text>
-                  <Text style={styles.fallbackLyricsText}>
-                    सानेको रिसाउने बानी भो{'\n'}
-                    सानेको रिसाउने बानी भो{'\n\n'}
-                    कहिल्यै नहाँस्ने, कहिल्यै नबोल्ने,{'\n'}
-                    के तिम्रो अनौठो चाला यो?
-                  </Text>
+                  <Text style={styles.fallbackLyricsText}>Lyrics are not available for this track yet.</Text>
+                </View>
+              ) : (
+                <View style={styles.fallbackLyricsBox}>
+                  <Text style={styles.fallbackLyricsText}>Looking for lyrics...</Text>
                 </View>
               )}
             </ScrollView>
