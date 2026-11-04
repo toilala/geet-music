@@ -2,8 +2,17 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Vibration,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddToPlaylistSheet } from '@/components/music/add-to-playlist-sheet';
@@ -13,29 +22,43 @@ import { TrackOptionsSheet } from '@/components/music/track-options-sheet';
 import { Colors } from '@/constants/theme';
 import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
-import type { Playlist, Track } from '@/data/music';
+import { tracks, type Playlist, type Track } from '@/data/music';
+import { getBottom50Tracks, getTop50Tracks } from '@/services/recommendations';
 
 const colors = Colors.dark;
 
-type FilterTab = 'all' | 'playlists' | 'liked' | 'history';
+type FilterTab = 'Playlists' | 'Songs' | 'Albums' | 'Artists' | 'Local';
+type ActiveView = 'main' | 'liked' | 'top50' | 'bottom50' | 'downloaded' | 'cached' | 'playlist-detail';
 
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
-  const { activeTrack, currentTime, duration, playing, selectTrack, setPlaying, togglePlayback, playNext } =
-    usePlayer();
+  const {
+    activeTrack,
+    currentTime,
+    duration,
+    playing,
+    selectTrack,
+    setPlaying,
+    togglePlayback,
+    playNext,
+    isDockCollapsed,
+    setIsDockCollapsed,
+  } = usePlayer();
   const {
     likedTracks,
     playlists,
-    history,
-    clearHistory,
     createPlaylist,
     deletePlaylist,
   } = useLibrary();
 
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [activeTab, setActiveTab] = useState<FilterTab>('Playlists');
+  const [activeView, setActiveView] = useState<ActiveView>('main');
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
+
+  const [top50Tracks, setTop50Tracks] = useState<Track[]>([]);
+  const [bottom50Tracks, setBottom50Tracks] = useState<Track[]>([]);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
@@ -43,8 +66,13 @@ export default function LibraryScreen() {
   const optionsSheetRef = useRef<BottomSheetModal>(null);
   const playlistSheetRef = useRef<BottomSheetModal>(null);
 
+  useEffect(() => {
+    void getTop50Tracks().then(setTop50Tracks);
+    void getBottom50Tracks().then(setBottom50Tracks);
+  }, []);
+
   const handlePlay = (track: Track, queueList?: Track[]) => {
-    selectTrack(track, queueList);
+    selectTrack(track, queueList || tracks);
     setPlaying(true);
     router.push({
       pathname: '/player/[id]',
@@ -76,6 +104,7 @@ export default function LibraryScreen() {
           deletePlaylist(playlist.id);
           if (selectedPlaylist?.id === playlist.id) {
             setSelectedPlaylist(null);
+            setActiveView('main');
           }
         },
       },
@@ -92,317 +121,373 @@ export default function LibraryScreen() {
     playlistSheetRef.current?.present();
   };
 
+  // Render detail view for Liked, Top 50, Bottom 50, or Selected Playlist
+  const renderDetailList = (title: string, trackList: Track[]) => (
+    <View style={styles.detailSection}>
+      <Pressable onPress={() => setActiveView('main')} style={styles.backButton}>
+        <SymbolView
+          name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+          tintColor={colors.primary}
+          size={18}
+        />
+        <Text style={styles.backButtonText}>Back to Library</Text>
+      </Pressable>
+
+      <View style={styles.detailHeader}>
+        <View>
+          <Text style={styles.detailTitle}>{title}</Text>
+          <Text style={styles.detailCount}>{trackList.length} songs</Text>
+        </View>
+        {trackList.length > 0 && (
+          <Pressable onPress={() => handlePlay(trackList[0], trackList)} style={styles.playAllPill}>
+            <SymbolView
+              name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
+              tintColor={colors.onPrimary}
+              size={16}
+            />
+            <Text style={styles.playAllPillText}>Play All</Text>
+          </Pressable>
+        )}
+      </View>
+
+      <View style={styles.cardContainer}>
+        {trackList.length === 0 ? (
+          <Text style={styles.emptyText}>No songs yet in this list.</Text>
+        ) : (
+          trackList.map((t) => (
+            <SongRow
+              key={t.id}
+              track={t}
+              active={t.id === activeTrack.id && playing}
+              onPress={() => handlePlay(t, trackList)}
+              onOptionsPress={openOptions}
+            />
+          ))
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 140 },
+          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 140 },
         ]}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > 60 && !isDockCollapsed) {
+            setIsDockCollapsed(true);
+          } else if (y <= 20 && isDockCollapsed) {
+            setIsDockCollapsed(false);
+          }
+        }}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}>
-
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>YOUR SPACE</Text>
-            <Text style={styles.title}>Library</Text>
+        {/* Top Header matching Echo Music Screenshot 1 */}
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Library</Text>
+          <View style={styles.actionRow}>
+            <Pressable style={styles.iconBtn}>
+              <SymbolView
+                name={{ ios: 'clock.arrow.circlepath', android: 'history', web: 'history' }}
+                tintColor={colors.text}
+                size={21}
+              />
+            </Pressable>
+            <Pressable style={styles.iconBtn}>
+              <SymbolView
+                name={{ ios: 'chart.line.uptrend.xyaxis', android: 'trending_up', web: 'trending_up' }}
+                tintColor={colors.text}
+                size={20}
+              />
+            </Pressable>
+            <Pressable style={styles.iconBtn}>
+              <SymbolView
+                name={{ ios: 'person.2.fill', android: 'group', web: 'group' }}
+                tintColor={colors.text}
+                size={20}
+              />
+            </Pressable>
+            <Pressable style={styles.avatarBtn}>
+              <Image
+                source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200&q=80"
+                style={styles.avatarImg}
+                contentFit="cover"
+              />
+              <View style={styles.avatarOnlineDot} />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={() => setIsCreatingPlaylist(true)}
-            style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
-            <SymbolView
-              name={{ ios: 'plus', android: 'add', web: 'add' }}
-              tintColor={colors.onPrimary}
-              size={20}
-            />
-          </Pressable>
         </View>
 
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPills}>
-          {(
-            [
-              { id: 'all', label: 'All' },
-              { id: 'playlists', label: `Playlists (${playlists.length})` },
-              { id: 'liked', label: `Liked (${likedTracks.length})` },
-              { id: 'history', label: `History (${history.length})` },
-            ] as const
-          ).map((tab) => (
-            <Pressable
-              key={tab.id}
-              onPress={() => {
-                setActiveTab(tab.id);
-                setSelectedPlaylist(null);
-              }}
-              style={[styles.pill, activeTab === tab.id && styles.pillActive]}>
-              <Text style={[styles.pillText, activeTab === tab.id && styles.pillTextActive]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-
-        {isCreatingPlaylist && (
-          <View style={styles.createCard}>
-            <Text style={styles.createTitle}>New Playlist</Text>
-            <TextInput
-              value={newPlaylistName}
-              onChangeText={setNewPlaylistName}
-              placeholder="Give your playlist a title..."
-              placeholderTextColor={colors.textSecondary}
-              style={styles.createInput}
-              autoFocus
-            />
-            <View style={styles.createActions}>
-              <Pressable onPress={() => setIsCreatingPlaylist(false)} style={styles.cancelBtn}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleCreatePlaylist}
-                disabled={!newPlaylistName.trim()}
-                style={[styles.confirmBtn, !newPlaylistName.trim() && styles.disabled]}>
-                <Text style={styles.confirmText}>Save</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-
-        {selectedPlaylist ? (
-          <View style={styles.playlistDetail}>
-            <Pressable onPress={() => setSelectedPlaylist(null)} style={styles.backBtn}>
-              <SymbolView
-                name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-                tintColor={colors.primary}
-                size={18}
-              />
-              <Text style={styles.backText}>All Playlists</Text>
-            </Pressable>
-
-            <View style={styles.playlistHero}>
-              <View style={styles.playlistCover}>
-                {selectedPlaylist.artwork ? (
-                  <Image source={selectedPlaylist.artwork} style={StyleSheet.absoluteFill} />
-                ) : (
-                  <SymbolView
-                    name={{ ios: 'music.note.list', android: 'playlist_play', web: 'playlist_play' }}
-                    tintColor={colors.primary}
-                    size={38}
-                  />
-                )}
-              </View>
-              <View style={styles.playlistMeta}>
-                <Text style={styles.detailTitle}>{selectedPlaylist.title}</Text>
-                <Text style={styles.detailCount}>{selectedPlaylist.tracks.length} songs</Text>
-                <View style={styles.detailActions}>
-                  {selectedPlaylist.tracks.length > 0 && (
-                    <Pressable
-                      onPress={() => handlePlay(selectedPlaylist.tracks[0], selectedPlaylist.tracks)}
-                      style={styles.playAllBtn}>
-                      <SymbolView
-                        name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
-                        tintColor={colors.onPrimary}
-                        size={16}
-                      />
-                      <Text style={styles.playAllText}>Play</Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    onPress={() => handleDeletePlaylist(selectedPlaylist)}
-                    style={styles.deleteBtn}>
-                    <SymbolView
-                      name={{ ios: 'trash', android: 'delete', web: 'delete' }}
-                      tintColor="#FF8B8B"
-                      size={18}
-                    />
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-
-            {selectedPlaylist.tracks.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>This playlist is empty.</Text>
-                <Text style={styles.emptySub}>Add songs from Home, Search, or Liked Songs.</Text>
-              </View>
-            ) : (
-              <View style={styles.list}>
-                {selectedPlaylist.tracks.map((track) => (
-                  <SongRow
-                    key={track.id}
-                    track={track}
-                    active={track.id === activeTrack.id && playing}
-                    onPress={() => handlePlay(track, selectedPlaylist.tracks)}
-                    onOptionsPress={openOptions}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
+        {activeView === 'liked' ? (
+          renderDetailList('Liked Songs', likedTracks)
+        ) : activeView === 'top50' ? (
+          renderDetailList('My Top 50', top50Tracks)
+        ) : activeView === 'bottom50' ? (
+          renderDetailList('My Bottom 50', bottom50Tracks)
+        ) : activeView === 'playlist-detail' && selectedPlaylist ? (
+          renderDetailList(selectedPlaylist.title, selectedPlaylist.tracks)
         ) : (
           <>
-
-            {activeTab === 'all' && (
-              <View style={styles.quickGrid}>
-
-                <Pressable
-                  onPress={() => setActiveTab('liked')}
-                  style={({ pressed }) => [styles.quickCard, pressed && styles.pressed]}>
-                  <View style={[styles.cardIcon, { backgroundColor: '#FF3B5C' }]}>
-                    <SymbolView
-                      name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' }}
-                      tintColor="#FFF"
-                      size={22}
-                    />
-                  </View>
-                  <Text style={styles.cardTitle}>Liked songs</Text>
-                  <Text style={styles.cardSubtitle}>{likedTracks.length} auto playlist</Text>
-                </Pressable>
-
-
-                <Pressable
-                  onPress={() => setActiveTab('history')}
-                  style={({ pressed }) => [styles.quickCard, pressed && styles.pressed]}>
-                  <View style={[styles.cardIcon, { backgroundColor: colors.primary }]}>
-                    <SymbolView
-                      name={{ ios: 'clock.arrow.circlepath', android: 'history', web: 'history' }}
-                      tintColor={colors.onPrimary}
-                      size={22}
-                    />
-                  </View>
-                  <Text style={styles.cardTitle}>History</Text>
-                  <Text style={styles.cardSubtitle}>{history.length} played</Text>
-                </Pressable>
-              </View>
-            )}
-
-
-            {(activeTab === 'all' || activeTab === 'playlists') && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Custom Playlists</Text>
-                  <Text style={styles.sectionCount}>{playlists.length}</Text>
-                </View>
-
-                {playlists.length === 0 ? (
-                  <Pressable onPress={() => setIsCreatingPlaylist(true)} style={styles.emptyCreateCard}>
-                    <SymbolView
-                      name={{ ios: 'plus.circle.fill', android: 'add_circle', web: 'add_circle' }}
-                      tintColor={colors.primary}
-                      size={28}
-                    />
-                    <View style={styles.emptyCreateMeta}>
-                      <Text style={styles.emptyCreateTitle}>Create your first playlist</Text>
-                      <Text style={styles.emptyCreateSub}>Group songs for workout, chill, or road trips</Text>
-                    </View>
+            {/* Filter Pills matching Echo Music: Playlists, Songs, Albums, Artists, Local */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterPillsContainer}>
+              {(['Playlists', 'Songs', 'Albums', 'Artists', 'Local'] as FilterTab[]).map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <Pressable
+                    key={tab}
+                    onPress={() => {
+                      try {
+                        Vibration.vibrate(8);
+                      } catch {}
+                      setActiveTab(tab);
+                    }}
+                    style={[styles.filterPill, isActive && styles.filterPillActive]}>
+                    <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
+                      {tab}
+                    </Text>
                   </Pressable>
-                ) : (
-                  <View style={styles.playlistList}>
-                    {playlists.map((pl) => (
-                      <Pressable
-                        key={pl.id}
-                        onPress={() => setSelectedPlaylist(pl)}
-                        style={({ pressed }) => [styles.playlistItem, pressed && styles.pressed]}>
-                        <View style={styles.itemArtwork}>
-                          {pl.artwork ? (
-                            <Image source={pl.artwork} style={StyleSheet.absoluteFill} />
-                          ) : (
-                            <SymbolView
-                              name={{ ios: 'music.note.list', android: 'playlist_play', web: 'playlist_play' }}
-                              tintColor={colors.primary}
-                              size={22}
-                            />
-                          )}
-                        </View>
-                        <View style={styles.itemMeta}>
-                          <Text numberOfLines={1} style={styles.itemTitle}>
-                            {pl.title}
-                          </Text>
-                          <Text style={styles.itemSubtitle}>{pl.tracks.length} songs</Text>
-                        </View>
-                        <SymbolView
-                          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-                          tintColor={colors.textSecondary}
-                          size={18}
-                        />
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
+                );
+              })}
+            </ScrollView>
+
+            {/* Sort Row: Date added + Chevron button */}
+            <View style={styles.sortRow}>
+              <View style={styles.sortPill}>
+                <Text style={styles.sortText}>Date added</Text>
               </View>
-            )}
+              <Pressable style={styles.chevronBtn}>
+                <SymbolView
+                  name={{ ios: 'chevron.up', android: 'keyboard_arrow_up', web: 'keyboard_arrow_up' }}
+                  tintColor={colors.text}
+                  size={16}
+                />
+              </Pressable>
+            </View>
 
+            {/* 2-Column Action Cards Grid matching Echo Music Screenshot 1 */}
+            <View style={styles.actionGrid}>
+              {/* Row 1: Liked & Downloaded */}
+              <View style={styles.gridRow}>
+                <Pressable
+                  onPress={() => setActiveView('liked')}
+                  style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}>
+                  <SymbolView
+                    name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' }}
+                    tintColor="#FFFFFF"
+                    size={20}
+                  />
+                  <Text style={styles.gridCardText}>Liked</Text>
+                </Pressable>
 
-            {(activeTab === 'all' || activeTab === 'liked') && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Liked Songs</Text>
-                  <Text style={styles.sectionCount}>{likedTracks.length}</Text>
-                </View>
-
-                {likedTracks.length === 0 ? (
-                  <View style={styles.emptyBox}>
-                    <SymbolView
-                      name={{ ios: 'heart', android: 'favorite_border', web: 'favorite_border' }}
-                      tintColor={colors.textSecondary}
-                      size={28}
-                    />
-                    <Text style={styles.emptyText}>No liked songs yet</Text>
-                    <Text style={styles.emptySub}>Tap the heart icon on any song to save it here</Text>
-                  </View>
-                ) : (
-                  <View style={styles.list}>
-                    {likedTracks.map((track) => (
-                      <SongRow
-                        key={track.id}
-                        track={track}
-                        active={track.id === activeTrack.id && playing}
-                        onPress={() => handlePlay(track, likedTracks)}
-                        onOptionsPress={openOptions}
-                      />
-                    ))}
-                  </View>
-                )}
+                <Pressable
+                  onPress={() => setActiveView('liked')}
+                  style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}>
+                  <SymbolView
+                    name={{ ios: 'checkmark.circle', android: 'check_circle', web: 'check_circle' }}
+                    tintColor="#FFFFFF"
+                    size={20}
+                  />
+                  <Text style={styles.gridCardText}>Downloaded</Text>
+                </Pressable>
               </View>
-            )}
 
+              {/* Row 2: Exported & Cached */}
+              <View style={styles.gridRow}>
+                <Pressable
+                  onPress={() => setActiveView('liked')}
+                  style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}>
+                  <SymbolView
+                    name={{ ios: 'square.and.arrow.down', android: 'download', web: 'download' }}
+                    tintColor="#FFFFFF"
+                    size={20}
+                  />
+                  <Text style={styles.gridCardText}>Exported</Text>
+                </Pressable>
 
-            {(activeTab === 'all' || activeTab === 'history') && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Recently Played</Text>
-                  {history.length > 0 && (
-                    <Pressable onPress={clearHistory} hitSlop={10}>
-                      <Text style={styles.clearText}>Clear</Text>
+                <Pressable
+                  onPress={() => setActiveView('top50')}
+                  style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}>
+                  <SymbolView
+                    name={{ ios: 'arrow.triangle.2.circlepath', android: 'sync', web: 'sync' }}
+                    tintColor="#FFFFFF"
+                    size={20}
+                  />
+                  <Text style={styles.gridCardText}>Cached</Text>
+                </Pressable>
+              </View>
+
+              {/* Row 3: My top 50 & My bottom 50 */}
+              <View style={styles.gridRow}>
+                <Pressable
+                  onPress={() => setActiveView('top50')}
+                  style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}>
+                  <SymbolView
+                    name={{ ios: 'chart.line.uptrend.xyaxis', android: 'trending_up', web: 'trending_up' }}
+                    tintColor="#FFFFFF"
+                    size={20}
+                  />
+                  <Text style={styles.gridCardText}>My top 50</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setActiveView('bottom50')}
+                  style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}>
+                  <SymbolView
+                    name={{ ios: 'chart.line.downtrend.xyaxis', android: 'trending_down', web: 'trending_down' }}
+                    tintColor="#FFFFFF"
+                    size={20}
+                  />
+                  <Text style={styles.gridCardText}>My bottom 50</Text>
+                </Pressable>
+              </View>
+
+              {/* Row 4: Local */}
+              <View style={styles.gridRow}>
+                <Pressable
+                  onPress={() => setActiveView('top50')}
+                  style={({ pressed }) => [styles.gridCard, styles.singleGridCard, pressed && styles.pressed]}>
+                  <SymbolView
+                    name={{ ios: 'folder', android: 'folder', web: 'folder' }}
+                    tintColor="#FFFFFF"
+                    size={20}
+                  />
+                  <Text style={styles.gridCardText}>Local</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Section: Playlists matching Screenshot 1 */}
+            <View style={styles.playlistsSection}>
+              <View style={styles.playlistsHeader}>
+                <Text style={styles.sectionTitle}>Playlists</Text>
+                <Pressable
+                  onPress={() => setIsCreatingPlaylist(true)}
+                  style={styles.addPlaylistBtn}>
+                  <SymbolView
+                    name={{ ios: 'plus', android: 'add', web: 'add' }}
+                    tintColor="#FFFFFF"
+                    size={16}
+                  />
+                </Pressable>
+              </View>
+
+              {isCreatingPlaylist && (
+                <View style={styles.createCard}>
+                  <TextInput
+                    value={newPlaylistName}
+                    onChangeText={setNewPlaylistName}
+                    placeholder="Playlist name..."
+                    placeholderTextColor="#7C8D89"
+                    style={styles.createInput}
+                    autoFocus
+                  />
+                  <View style={styles.createActions}>
+                    <Pressable onPress={() => setIsCreatingPlaylist(false)} style={styles.cancelBtn}>
+                      <Text style={styles.cancelText}>Cancel</Text>
                     </Pressable>
-                  )}
+                    <Pressable onPress={handleCreatePlaylist} style={styles.confirmBtn}>
+                      <Text style={styles.confirmText}>Create</Text>
+                    </Pressable>
+                  </View>
                 </View>
+              )}
 
-                {history.length === 0 ? (
-                  <View style={styles.emptyBox}>
-                    <Text style={styles.emptyText}>No listening history yet</Text>
-                    <Text style={styles.emptySub}>Tracks you play will show up here</Text>
+              {/* 2-Column Playlists Grid with Collage Artworks */}
+              <View style={styles.playlistsGrid}>
+                {/* Default Playlist Icon Card */}
+                <Pressable
+                  onPress={() => {
+                    if (playlists.length > 0) {
+                      setSelectedPlaylist(playlists[0]);
+                      setActiveView('playlist-detail');
+                    } else {
+                      setIsCreatingPlaylist(true);
+                    }
+                  }}
+                  style={styles.playlistArtCard}>
+                  <SymbolView
+                    name={{ ios: 'music.note.list', android: 'playlist_play', web: 'playlist_play' }}
+                    tintColor="#6E6460"
+                    size={48}
+                  />
+                </Pressable>
+
+                {/* 4-Quadrant Collage Playlist Card with `+` badge matching Screenshot 1 */}
+                <Pressable
+                  onPress={() => setIsCreatingPlaylist(true)}
+                  style={styles.collageCard}>
+                  <View style={styles.collageGrid}>
+                    <Image
+                      source="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&q=80"
+                      style={styles.collageQuarter}
+                    />
+                    <Image
+                      source="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200&q=80"
+                      style={styles.collageQuarter}
+                    />
+                    <Image
+                      source="https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=200&q=80"
+                      style={styles.collageQuarter}
+                    />
+                    <Image
+                      source="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200&q=80"
+                      style={styles.collageQuarter}
+                    />
                   </View>
-                ) : (
-                  <View style={styles.list}>
-                    {history.map((track) => (
-                      <SongRow
-                        key={track.id}
-                        track={track}
-                        active={track.id === activeTrack.id && playing}
-                        onPress={() => handlePlay(track, history)}
-                        onOptionsPress={openOptions}
-                      />
-                    ))}
+                  <View style={styles.addCircleBadge}>
+                    <SymbolView
+                      name={{ ios: 'plus', android: 'add', web: 'add' }}
+                      tintColor="#0D0B0A"
+                      size={18}
+                    />
                   </View>
-                )}
+                </Pressable>
               </View>
-            )}
+
+              {/* Custom Playlists List */}
+              {playlists.length > 0 && (
+                <View style={styles.playlistRows}>
+                  {playlists.map((pl) => (
+                    <Pressable
+                      key={pl.id}
+                      onPress={() => {
+                        setSelectedPlaylist(pl);
+                        setActiveView('playlist-detail');
+                      }}
+                      onLongPress={() => handleDeletePlaylist(pl)}
+                      style={styles.playlistRowItem}>
+                      <View style={styles.playlistIconBox}>
+                        <SymbolView
+                          name={{ ios: 'music.note.list', android: 'queue_music', web: 'queue_music' }}
+                          tintColor={colors.primary}
+                          size={20}
+                        />
+                      </View>
+                      <View style={styles.playlistMeta}>
+                        <Text style={styles.playlistTitle}>{pl.title}</Text>
+                        <Text style={styles.playlistSub}>{pl.tracks.length} songs</Text>
+                      </View>
+                      <SymbolView
+                        name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                        tintColor="#7C8D89"
+                        size={16}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
           </>
         )}
       </ScrollView>
 
-
+      {/* Floating Mini Player positioned above floating bottom tabs */}
       <View style={[styles.playerDock, { bottom: insets.bottom + 72 }]}>
         <MiniPlayer
           track={activeTrack}
@@ -427,13 +512,11 @@ export default function LibraryScreen() {
         />
       </View>
 
-
       <TrackOptionsSheet
         ref={optionsSheetRef}
         track={optionsTrack}
         onOpenPlaylistModal={openAddToPlaylist}
       />
-
 
       <AddToPlaylistSheet ref={playlistSheetRef} track={playlistTrack} />
     </View>
@@ -443,84 +526,255 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0D0B0A',
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: -0.6,
   },
-  title: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginTop: 4,
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  addBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.primary,
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterPills: {
+  avatarBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    marginLeft: 2,
+    position: 'relative',
+  },
+  avatarImg: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  avatarOnlineDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#3DD598',
+    borderWidth: 2,
+    borderColor: '#0D0B0A',
+  },
+  filterPillsContainer: {
     gap: 8,
-    paddingBottom: 20,
+    marginBottom: 16,
   },
-  pill: {
+  filterPill: {
     paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.surfaceHighest,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  pillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  filterPillActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
-  pillText: {
-    color: colors.textSecondary,
+  filterPillText: {
+    color: '#9E938F',
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  filterPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
+  sortPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  sortText: {
+    color: '#D4DDD9',
     fontSize: 13,
     fontWeight: '700',
   },
-  pillTextActive: {
-    color: colors.onPrimary,
+  chevronBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionGrid: {
+    gap: 10,
+    marginBottom: 28,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  gridCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E1918',
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  singleGridCard: {
+    flex: 0.485,
+  },
+  gridCardText: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
     fontWeight: '800',
+  },
+  playlistsSection: {
+    marginBottom: 20,
+  },
+  playlistsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+  },
+  addPlaylistBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playlistsGrid: {
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 16,
+  },
+  playlistArtCard: {
+    flex: 1,
+    height: 160,
+    borderRadius: 24,
+    backgroundColor: '#1E1918',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  collageCard: {
+    flex: 1,
+    height: 160,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E1918',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  collageGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  collageQuarter: {
+    width: '50%',
+    height: '50%',
+  },
+  addCircleBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F5A952',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  playlistRows: {
+    gap: 8,
+    marginTop: 8,
+  },
+  playlistRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E1918',
+    padding: 12,
+    borderRadius: 18,
+  },
+  playlistIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#26201F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playlistMeta: {
+    flex: 1,
+    gap: 2,
+  },
+  playlistTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  playlistSub: {
+    color: '#9E938F',
+    fontSize: 12,
   },
   createCard: {
-    backgroundColor: colors.surfaceHigh,
-    padding: 18,
-    borderRadius: 22,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.surfaceHighest,
-    gap: 12,
-  },
-  createTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
+    backgroundColor: '#1E1918',
+    padding: 14,
+    borderRadius: 18,
+    marginBottom: 16,
+    gap: 10,
   },
   createInput: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    color: colors.text,
-    fontSize: 15,
+    backgroundColor: '#120F0E',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    color: '#FFFFFF',
+    fontSize: 14,
   },
   createActions: {
     flexDirection: 'row',
@@ -528,235 +782,83 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   cancelText: {
-    color: colors.textSecondary,
+    color: '#9E938F',
     fontWeight: '700',
   },
   confirmBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   confirmText: {
     color: colors.onPrimary,
     fontWeight: '800',
   },
-  disabled: {
-    opacity: 0.5,
-  },
-  quickGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 28,
-  },
-  quickCard: {
-    flex: 1,
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: 24,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.surfaceHighest,
-  },
-  cardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  cardSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 3,
-  },
-  section: {
-    marginBottom: 28,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  sectionCount: {
-    color: colors.primary,
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  clearText: {
-    color: '#FF8B8B',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  playlistList: {
-    gap: 8,
-  },
-  playlistItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: colors.surfaceHigh,
-    padding: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.surfaceHighest,
-  },
-  itemArtwork: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceHighest,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  itemMeta: {
-    flex: 1,
-    gap: 3,
-  },
-  itemTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  itemSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
-  emptyCreateCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.surfaceHighest,
-    borderStyle: 'dashed',
-  },
-  emptyCreateMeta: {
-    flex: 1,
-    gap: 2,
-  },
-  emptyCreateTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  emptyCreateSub: {
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
-  emptyBox: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: 22,
-    padding: 24,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyText: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  emptySub: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  playlistDetail: {
+  detailSection: {
     gap: 16,
   },
-  backBtn: {
+  backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     alignSelf: 'flex-start',
-    marginBottom: 4,
+    paddingVertical: 4,
   },
-  backText: {
+  backButtonText: {
     color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
-  playlistHero: {
+  detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    backgroundColor: colors.surfaceHigh,
-    padding: 16,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.surfaceHighest,
-  },
-  playlistCover: {
-    width: 76,
-    height: 76,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceHighest,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  playlistMeta: {
-    flex: 1,
-    gap: 6,
+    justifyContent: 'space-between',
   },
   detailTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
   },
   detailCount: {
-    color: colors.textSecondary,
+    color: '#9E938F',
     fontSize: 13,
   },
-  detailActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 4,
-  },
-  playAllBtn: {
+  playAllPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
-  playAllText: {
+  playAllPillText: {
     color: colors.onPrimary,
+    fontSize: 13,
     fontWeight: '800',
-    fontSize: 12,
   },
-  deleteBtn: {
+  cardContainer: {
+    backgroundColor: '#1A1514',
+    borderRadius: 24,
     padding: 6,
-  },
-  list: {
     gap: 2,
+  },
+  emptyText: {
+    color: '#9E938F',
+    textAlign: 'center',
+    paddingVertical: 32,
+    fontSize: 14,
   },
   playerDock: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 14,
+    right: 14,
+    zIndex: 900,
   },
   pressed: {
     opacity: 0.8,

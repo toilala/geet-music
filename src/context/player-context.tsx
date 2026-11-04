@@ -63,6 +63,8 @@ type PlayerContextValue = {
   setSleepTimer: (minutes: number | null) => void;
   isVideoMode: boolean;
   toggleVideoMode: () => void;
+  isDockCollapsed: boolean;
+  setIsDockCollapsed: (collapsed: boolean) => void;
 };
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -82,6 +84,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [isVideoMode, setIsVideoMode] = useState(false);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
+  const [isDockCollapsed, setIsDockCollapsed] = useState(false);
 
   const controllerRef = useRef<PlayerController | null>(null);
 
@@ -408,6 +411,8 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       setSleepTimer,
       isVideoMode,
       toggleVideoMode,
+      isDockCollapsed,
+      setIsDockCollapsed,
     }),
     [
       activeTrack,
@@ -444,6 +449,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       isVideoMode,
       toggleVideoMode,
       toggleThemeMode,
+      isDockCollapsed,
     ]
   );
 

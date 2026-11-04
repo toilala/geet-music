@@ -4,41 +4,41 @@ export type ThemeMode = 'material-expressive' | 'liquid-glass';
 
 export const Colors = {
   dark: {
-    // Material Expressive / Liquid Glass Dark Palette
-    text: '#F2F5F4',
-    textSecondary: '#9AA7A3',
-    textMuted: '#687773',
-    background: '#0D1110',
-    backgroundElement: '#1A2523',
-    backgroundSelected: '#2D5A54',
-    backgroundSurface: '#131817',
-    backgroundCard: '#1A201E',
-    surface: '#17201F',
-    surfaceHigh: '#222A28',
-    surfaceHighest: '#2B3533',
+    // Exact Echo Music dark warm espresso palette from screenshots
+    text: '#FFFFFF',
+    textSecondary: '#A39893',
+    textMuted: '#6E6460',
+    background: '#0D0B0A',
+    backgroundElement: '#1A1514',
+    backgroundSelected: '#322624',
+    backgroundSurface: '#14100F',
+    backgroundCard: '#1E1918',
+    surface: '#1A1514',
+    surfaceHigh: '#241D1C',
+    surfaceHighest: '#2F2625',
     primary: '#7CD5C6',
-    primaryContainer: '#1C3833',
+    primaryContainer: '#23322E',
     onPrimaryContainer: '#A6F5E7',
     onPrimary: '#003831',
-    secondary: '#AFC8D8',
-    secondaryContainer: '#28363F',
+    secondary: '#D4A58E',
+    secondaryContainer: '#3D2A22',
     tertiary: '#EAB299',
-    accentGreen: '#63D188',
+    accentGreen: '#3DD598',
     accentAmber: '#F5A952',
     accentPink: '#FF5370',
     outline: 'rgba(255, 255, 255, 0.08)',
     outlineActive: 'rgba(124, 213, 198, 0.35)',
     divider: 'rgba(255, 255, 255, 0.06)',
-    activeTrackBackground: '#26332C',
+    activeTrackBackground: '#2E221E',
 
     // Liquid Glass specifics
-    glassBackground: 'rgba(20, 26, 24, 0.72)',
-    glassBackgroundActive: 'rgba(32, 44, 40, 0.85)',
-    glassBorder: 'rgba(255, 255, 255, 0.12)',
-    glassBorderHighlight: 'rgba(124, 213, 198, 0.28)',
-    glassOverlay: 'rgba(0, 0, 0, 0.45)',
+    glassBackground: 'rgba(26, 21, 20, 0.88)',
+    glassBackgroundActive: 'rgba(38, 30, 28, 0.94)',
+    glassBorder: 'rgba(255, 255, 255, 0.1)',
+    glassBorderHighlight: 'rgba(124, 213, 198, 0.3)',
+    glassOverlay: 'rgba(0, 0, 0, 0.55)',
     glassPill: 'rgba(255, 255, 255, 0.08)',
-    glassPillActive: 'rgba(124, 213, 198, 0.22)',
+    glassPillActive: 'rgba(255, 255, 255, 0.18)',
   },
   light: {
     text: '#171D1C',
@@ -112,36 +112,3 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
-
-export const GlassStyles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.dark.glassBackground,
-    borderWidth: 1,
-    borderColor: Colors.dark.glassBorder,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  pill: {
-    backgroundColor: Colors.dark.glassPill,
-    borderWidth: 1,
-    borderColor: Colors.dark.glassBorder,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  activePill: {
-    backgroundColor: Colors.dark.glassPillActive,
-    borderColor: Colors.dark.glassBorderHighlight,
-  },
-  dock: {
-    backgroundColor: 'rgba(16, 21, 20, 0.82)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 34,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-});

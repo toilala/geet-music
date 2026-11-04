@@ -34,8 +34,18 @@ const colors = Colors.dark;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { activeTrack, currentTime, duration, playing, selectTrack, setPlaying, togglePlayback, playNext } =
-    usePlayer();
+  const {
+    activeTrack,
+    currentTime,
+    duration,
+    playing,
+    selectTrack,
+    setPlaying,
+    togglePlayback,
+    playNext,
+    isDockCollapsed,
+    setIsDockCollapsed,
+  } = usePlayer();
   const { addToHistory, history } = useLibrary();
 
   const [selectedMood, setSelectedMood] = useState<MoodCategory>(moodCategories[0]);
@@ -170,6 +180,15 @@ export default function HomeScreen() {
           styles.content,
           { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 140 },
         ]}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > 60 && !isDockCollapsed) {
+            setIsDockCollapsed(true);
+          } else if (y <= 20 && isDockCollapsed) {
+            setIsDockCollapsed(false);
+          }
+        }}
+        scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={

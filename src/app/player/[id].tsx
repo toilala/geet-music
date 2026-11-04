@@ -67,6 +67,7 @@ export default function PlayerScreen() {
   // Mode: 'song' (album artwork) or 'lyrics' (full lyrics like Echo Music Screenshot 4)
   const [viewMode, setViewMode] = useState<'song' | 'lyrics'>('song');
   const [lyricsData, setLyricsData] = useState<Awaited<ReturnType<typeof getLyrics>> | null>(null);
+  const lyricsScrollRef = useRef<ScrollView>(null);
 
   // Sheets
   const queueSheetRef = useRef<BottomSheetModal>(null);

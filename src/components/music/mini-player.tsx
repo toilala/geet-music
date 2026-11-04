@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { usePlayer } from '@/context/player-context';
 import type { Track } from '@/data/music';
 
 const colors = Colors.dark;
@@ -26,6 +27,9 @@ export function MiniPlayer({
   onNext,
   onOpen,
 }: Props) {
+  const { isDockCollapsed } = usePlayer();
+  if (isDockCollapsed) return null;
+
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
 
   return (

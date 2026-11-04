@@ -1,4 +1,5 @@
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
@@ -21,34 +22,94 @@ import { TrackOptionsSheet } from '@/components/music/track-options-sheet';
 import { Colors } from '@/constants/theme';
 import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
-import { tracks, type Track } from '@/data/music';
-import { getPopularYouTube, getSearchSuggestions, searchYouTube } from '@/services/youtube';
+import type { Track } from '@/data/music';
+import { searchYouTube } from '@/services/youtube';
 
 const colors = Colors.dark;
 
-const EXPLORE_GENRES = [
-  { id: 'pop', title: 'Pop Hits', query: 'top pop hits music', color: '#1A4D46', icon: 'sparkles' },
-  { id: 'hiphop', title: 'Hip-Hop & Rap', query: 'hip hop rap hits', color: '#4E2C17', icon: 'flame.fill' },
-  { id: 'rock', title: 'Rock & Alt', query: 'rock alternative hits', color: '#273842', icon: 'guitars.fill' },
-  { id: 'lofi', title: 'Lofi & Chill', query: 'lofi chill study beats', color: '#233F3A', icon: 'leaf.fill' },
-  { id: 'edm', title: 'EDM & Dance', query: 'electronic dance music', color: '#43224E', icon: 'bolt.fill' },
-  { id: 'rnb', title: 'R&B / Soul', query: 'r&b soul smooth music', color: '#562334', icon: 'heart.fill' },
-  { id: 'indie', title: 'Indie Vibes', query: 'indie bedroom pop', color: '#1E3C4E', icon: 'music.note' },
-  { id: 'workout', title: 'Workout Energy', query: 'workout bass motivation music', color: '#5A1B1B', icon: 'bolt.heart.fill' },
+// Real Apple Music Top 100 entries matching Echo Music Screenshots 2 & 3
+const APPLE_MUSIC_TOP_100: Track[] = [
+  {
+    id: 'choosin-texas',
+    title: "Choosin' Texas",
+    artist: 'Ella Langley · 833k plays',
+    videoId: 'c_K7U9k-688',
+    artwork: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&q=85',
+    duration: '3:15',
+    durationSeconds: 195,
+  },
+  {
+    id: 'housewife',
+    title: 'Housewife',
+    artist: 'Tate McRae · 625k plays',
+    videoId: '0mHkQcZpE_U',
+    artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=85',
+    duration: '2:58',
+    durationSeconds: 178,
+  },
+  {
+    id: 'bby-wow',
+    title: 'BbY WOW',
+    artist: 'KAROL G, Judeline & rusowsky · 500k plays',
+    videoId: 'k1Z5Zp5M3wE',
+    artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=85',
+    duration: '3:32',
+    durationSeconds: 212,
+  },
+  {
+    id: 'janice-stfu',
+    title: 'Janice STFU',
+    artist: 'Drake · 416k plays',
+    videoId: 'd9s8A5R1pQo',
+    artwork: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&q=85',
+    duration: '3:45',
+    durationSeconds: 225,
+  },
+  {
+    id: 'solar-eclipse',
+    title: 'Solar Eclipse',
+    artist: 'Drake & Don Toliver · 357k plays',
+    videoId: 'zXo_R3XwR_8',
+    artwork: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=500&q=85',
+    duration: '4:10',
+    durationSeconds: 250,
+  },
+];
+
+// Trending Artists matching Echo Music Screenshot 3
+const TRENDING_ARTISTS = [
+  { id: '1', name: 'Drake', plays: '1.7M plays', image: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=400&q=80' },
+  { id: '2', name: 'Morgan Wallen', plays: '1.5M plays', image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&q=80' },
+  { id: '3', name: 'Lil Baby', plays: '1.4M plays', image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80' },
+];
+
+// Trending Albums matching Echo Music Screenshot 3
+const TRENDING_ALBUMS = [
+  { id: '1', title: 'BETTER OVER TI...', artist: 'BigXthaPlug', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80' },
+  { id: '2', title: 'HABIBTI (FOMO)', artist: 'Drake', image: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=80' },
+  { id: '3', title: 'you seem pretty s...', artist: 'Olivia Rodrigo', image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80' },
 ];
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
-  const { activeTrack, currentTime, duration, playing, selectTrack, setPlaying, togglePlayback, playNext } =
-    usePlayer();
-  const { addToHistory, searchHistory, addSearchTerm, removeSearchTerm } = useLibrary();
+  const {
+    activeTrack,
+    currentTime,
+    duration,
+    playing,
+    selectTrack,
+    setPlaying,
+    togglePlayback,
+    playNext,
+    isDockCollapsed,
+    setIsDockCollapsed,
+  } = usePlayer();
+  const { addToHistory } = useLibrary();
 
   const [query, setQuery] = useState('');
-  const [activeSearch, setActiveSearch] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [results, setResults] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [pageIndex, setPageIndex] = useState(1);
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
@@ -57,63 +118,25 @@ export default function ExploreScreen() {
   const playlistSheetRef = useRef<BottomSheetModal>(null);
 
   useEffect(() => {
-    let mounted = true;
-    void getPopularYouTube().then((popular) => {
-      if (mounted && popular.length > 0) {
-        setResults(popular);
-      } else if (mounted) {
-        setResults(tracks);
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!query.trim() || query.trim() === activeSearch) {
-        setSuggestions([]);
-      } else {
-        void getSearchSuggestions(query).then(setSuggestions);
-      }
-    }, 280);
-    return () => clearTimeout(timer);
-  }, [query, activeSearch]);
-
-  const executeSearch = async (searchTerm: string) => {
-    const term = searchTerm.trim();
-    if (!term) return;
-    Keyboard.dismiss();
-    setQuery(term);
-    setActiveSearch(term);
-    setSuggestions([]);
-    addSearchTerm(term);
-    setLoading(true);
-    setError('');
-
-    try {
-      const data = await searchYouTube(term);
-      setResults(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed. Showing offline picks.');
-      setResults(tracks);
-    } finally {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setResults([]);
       setLoading(false);
+      return;
     }
-  };
+    setLoading(true);
+    const timer = setTimeout(() => {
+      void searchYouTube(trimmed).then((res) => {
+        setResults(res);
+        setLoading(false);
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query]);
 
-  const clearSearch = () => {
-    setQuery('');
-    setActiveSearch('');
-    setSuggestions([]);
-    setError('');
-    void getPopularYouTube().then((popular) => setResults(popular.length > 0 ? popular : tracks));
-  };
-
-  const handlePlayTrack = (track: Track) => {
+  const handlePlayTrack = (track: Track, queueList?: Track[]) => {
     addToHistory(track);
-    selectTrack(track, results);
+    selectTrack(track, queueList || APPLE_MUSIC_TOP_100);
     setPlaying(true);
     router.push({
       pathname: '/player/[id]',
@@ -143,33 +166,37 @@ export default function ExploreScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 140 },
+          { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 140 },
         ]}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > 60 && !isDockCollapsed) {
+            setIsDockCollapsed(true);
+          } else if (y <= 20 && isDockCollapsed) {
+            setIsDockCollapsed(false);
+          }
+        }}
+        scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Search</Text>
-        </View>
-
-        {/* Beautiful Material Expressive / Liquid Glass Search Bar */}
+        {/* Search Bar matching Echo Music Screenshot 2 */}
         <View style={styles.searchBar}>
           <SymbolView
             name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
-            tintColor={colors.primary}
+            tintColor="#8FA09B"
             size={20}
           />
           <TextInput
             value={query}
             onChangeText={setQuery}
-            onSubmitEditing={() => executeSearch(query)}
-            placeholder="Tracks, artists, albums..."
+            placeholder="Search library..."
             placeholderTextColor="#7C8D89"
             style={styles.searchInput}
             returnKeyType="search"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
           {query.length > 0 ? (
-            <Pressable onPress={clearSearch} hitSlop={12} style={styles.iconBtn}>
+            <Pressable onPress={() => setQuery('')} hitSlop={12} style={styles.iconBtn}>
               <SymbolView
                 name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }}
                 tintColor="#9EAAA6"
@@ -177,126 +204,166 @@ export default function ExploreScreen() {
               />
             </Pressable>
           ) : (
-            <Pressable onPress={() => executeSearch('top trending songs')} hitSlop={12} style={styles.iconBtn}>
+            <Pressable style={styles.iconBtn}>
               <SymbolView
-                name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
-                tintColor={colors.primary}
-                size={18}
+                name={{ ios: 'music.note.list', android: 'queue_music', web: 'queue_music' }}
+                tintColor="#FFFFFF"
+                size={20}
               />
             </Pressable>
           )}
         </View>
 
-        {/* Suggestions */}
-        {suggestions.length > 0 && (
-          <View style={styles.suggestionsBox}>
-            {suggestions.map((suggestion) => (
-              <Pressable
-                key={suggestion}
-                onPress={() => executeSearch(suggestion)}
-                style={({ pressed }) => [styles.suggestionItem, pressed && styles.pressed]}>
-                <SymbolView
-                  name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
-                  tintColor={colors.textSecondary}
-                  size={16}
-                />
-                <Text numberOfLines={1} style={styles.suggestionText}>
-                  {suggestion}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {/* Recent Searches */}
-        {searchHistory.length > 0 && !activeSearch && (
-          <View style={styles.historySection}>
-            <Text style={styles.sectionTitle}>Recent</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.historyChips}>
-              {searchHistory.map((term) => (
-                <View key={term} style={styles.historyChip}>
-                  <Pressable onPress={() => executeSearch(term)} style={styles.chipPress}>
-                    <SymbolView
-                      name={{ ios: 'clock', android: 'history', web: 'history' }}
-                      tintColor={colors.textSecondary}
-                      size={13}
-                    />
-                    <Text style={styles.chipText}>{term}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => removeSearchTerm(term)} hitSlop={8} style={styles.chipRemove}>
-                    <SymbolView
-                      name={{ ios: 'xmark', android: 'close', web: 'close' }}
-                      tintColor={colors.textSecondary}
-                      size={12}
-                    />
-                  </Pressable>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Browse Categories Grid */}
-        {!activeSearch && (
-          <View style={styles.genresSection}>
-            <Text style={styles.sectionTitle}>Browse All</Text>
-            <View style={styles.genresGrid}>
-              {EXPLORE_GENRES.map((genre) => (
-                <Pressable
-                  key={genre.id}
-                  onPress={() => executeSearch(genre.query)}
-                  style={({ pressed }) => [
-                    styles.genreCard,
-                    { backgroundColor: genre.color },
-                    pressed && styles.pressed,
-                  ]}>
-                  <Text style={styles.genreTitle}>{genre.title}</Text>
-                  <View style={styles.genreIconWrap}>
-                    <SymbolView
-                      name={{ ios: genre.icon as any, android: 'music_note', web: 'music_note' }}
-                      tintColor="rgba(255, 255, 255, 0.85)"
-                      size={20}
-                    />
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Results Header */}
-        <View style={styles.resultsHeader}>
-          <Text style={styles.resultsTitle}>
-            {activeSearch ? `Results for "${activeSearch}"` : 'Top Picks'}
-          </Text>
-        </View>
-
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {loading ? (
-          <View style={styles.loaderBox}>
-            <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.loaderText}>Searching...</Text>
+        {query.trim().length > 0 ? (
+          <View style={styles.resultsSection}>
+            <Text style={styles.sectionTitle}>Search Results</Text>
+            {loading ? (
+              <View style={styles.loaderBox}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.loaderText}>Searching music...</Text>
+              </View>
+            ) : (
+              <View style={styles.cardContainer}>
+                {results.map((track) => (
+                  <SongRow
+                    key={track.id}
+                    track={track}
+                    active={track.id === activeTrack.id && playing}
+                    onPress={() => handlePlayTrack(track, results)}
+                    onOptionsPress={openOptions}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         ) : (
-          <View style={styles.resultsCardContainer}>
-            {results.map((track) => (
-              <SongRow
-                key={track.id}
-                track={track}
-                active={track.id === activeTrack.id && playing}
-                onPress={() => handlePlayTrack(track)}
-                onOptionsPress={openOptions}
-              />
-            ))}
-          </View>
+          <>
+            {/* Apple Music Top 100 Section matching Echo Music Screenshot 2 */}
+            <View style={styles.chartSection}>
+              <Text style={styles.chartTitle}>Apple Music Top 100</Text>
+              <Text style={styles.chartSubtitle}>System Default</Text>
+
+              {/* Grouped rounded chart container */}
+              <View style={styles.chartCardContainer}>
+                {APPLE_MUSIC_TOP_100.map((item, index) => (
+                  <SongRow
+                    key={item.id}
+                    track={item}
+                    rank={index + 1}
+                    active={item.id === activeTrack.id && playing}
+                    onPress={() => handlePlayTrack(item, APPLE_MUSIC_TOP_100)}
+                    onOptionsPress={openOptions}
+                  />
+                ))}
+              </View>
+
+              {/* Pagination Capsule: < 1 of 6 > matching Screenshot 2 */}
+              <View style={styles.paginationRow}>
+                <Pressable
+                  onPress={() => setPageIndex((p) => Math.max(1, p - 1))}
+                  style={styles.pageBtn}>
+                  <SymbolView
+                    name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
+                    tintColor="#FFFFFF"
+                    size={16}
+                  />
+                </Pressable>
+                <Text style={styles.pageText}>{pageIndex} of 6</Text>
+                <Pressable
+                  onPress={() => setPageIndex((p) => Math.min(6, p + 1))}
+                  style={styles.pageBtn}>
+                  <SymbolView
+                    name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                    tintColor="#FFFFFF"
+                    size={16}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Trending Artists Section matching Screenshot 2 & 3 */}
+            <View style={styles.sectionWrap}>
+              <Text style={styles.sectionTitle}>Trending Artists</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalRow}>
+                {TRENDING_ARTISTS.map((artist) => (
+                  <Pressable
+                    key={artist.id}
+                    onPress={() => setQuery(artist.name)}
+                    style={styles.artistCard}>
+                    <View style={styles.artistImageContainer}>
+                      <Image source={artist.image} style={styles.artistImage} />
+                      <View style={styles.rankBadge}>
+                        <Text style={styles.rankBadgeText}>{artist.id}</Text>
+                      </View>
+                    </View>
+                    <Text numberOfLines={1} style={styles.artistName}>
+                      {artist.name}
+                    </Text>
+                    <Text style={styles.artistPlays}>{artist.plays}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Trending Albums Section matching Screenshot 3 */}
+            <View style={styles.sectionWrap}>
+              <Text style={styles.sectionTitle}>Trending Albums</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalRow}>
+                {TRENDING_ALBUMS.map((album) => (
+                  <Pressable
+                    key={album.id}
+                    onPress={() => setQuery(album.title)}
+                    style={styles.albumCard}>
+                    <View style={styles.albumImageContainer}>
+                      <Image source={album.image} style={styles.albumImage} />
+                      <View style={styles.rankBadge}>
+                        <Text style={styles.rankBadgeText}>{album.id}</Text>
+                      </View>
+                    </View>
+                    <Text numberOfLines={1} style={styles.albumTitle}>
+                      {album.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.albumArtist}>
+                      {album.artist}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Trending Music Videos Section matching Screenshot 3 */}
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Trending Music Videos</Text>
+                <Text style={styles.moreLink}>More</Text>
+              </View>
+
+              <Pressable
+                onPress={() => handlePlayTrack(APPLE_MUSIC_TOP_100[3])}
+                style={styles.videoCard}>
+                <Image
+                  source="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&q=85"
+                  style={styles.videoImage}
+                />
+                <View style={styles.videoOverlay}>
+                  <Text style={styles.videoTitle}>Slap The City</Text>
+                  <Text style={styles.videoArtist}>Drake & Qendresa</Text>
+                </View>
+              </Pressable>
+            </View>
+
+            {/* Footer Attribution matching Screenshot 3 */}
+            <View style={styles.footerAttr}>
+              <Text style={styles.footerAttrText}>Data from Apple Music</Text>
+              <Text style={styles.footerBrandText}>echo-music</Text>
+            </View>
+          </>
         )}
       </ScrollView>
 
@@ -339,19 +406,10 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0D1110',
+    backgroundColor: '#0D0B0A',
   },
   content: {
-    paddingHorizontal: 20,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -0.6,
+    paddingHorizontal: 18,
   },
   searchBar: {
     flexDirection: 'row',
@@ -359,11 +417,11 @@ const styles = StyleSheet.create({
     gap: 12,
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#1E1918',
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 18,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 20,
   },
   searchInput: {
     flex: 1,
@@ -374,115 +432,196 @@ const styles = StyleSheet.create({
   iconBtn: {
     padding: 6,
   },
-  suggestionsBox: {
-    backgroundColor: '#161B19',
-    borderRadius: 20,
-    padding: 8,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-  },
-  suggestionText: {
-    color: '#E8F0EC',
-    fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
-  },
-  historySection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  historyChips: {
-    gap: 8,
-  },
-  historyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 18,
-    paddingLeft: 12,
-    paddingRight: 8,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  chipPress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  chipText: {
-    color: '#DEE5E2',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipRemove: {
-    padding: 4,
-    marginLeft: 4,
-  },
-  genresSection: {
+  chartSection: {
     marginBottom: 24,
   },
-  genresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  genreCard: {
-    width: '48%',
-    height: 72,
-    borderRadius: 18,
-    padding: 12,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  genreTitle: {
+  chartTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.4,
   },
-  genreIconWrap: {
-    alignSelf: 'flex-end',
-  },
-  resultsHeader: {
-    marginBottom: 12,
-    marginTop: 6,
-  },
-  resultsTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  errorBanner: {
-    backgroundColor: '#30181A',
-    padding: 12,
-    borderRadius: 14,
-    marginBottom: 12,
-  },
-  errorText: {
-    color: '#FFB4AB',
+  chartSubtitle: {
+    color: '#9E938F',
     fontSize: 13,
+    marginTop: 2,
+    marginBottom: 12,
   },
-  resultsCardContainer: {
-    backgroundColor: '#151A18',
+  chartCardContainer: {
+    backgroundColor: '#1E1918',
     borderRadius: 24,
     padding: 6,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 2,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#1E1918',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 16,
+    marginTop: 14,
+  },
+  pageBtn: {
+    padding: 4,
+  },
+  pageText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sectionWrap: {
+    marginBottom: 26,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 12,
+  },
+  moreLink: {
+    color: '#9E938F',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  horizontalRow: {
+    gap: 14,
+  },
+  artistCard: {
+    width: 124,
+    alignItems: 'center',
+    gap: 4,
+  },
+  artistImageContainer: {
+    width: 124,
+    height: 124,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E1918',
+  },
+  artistImage: {
+    width: '100%',
+    height: '100%',
+  },
+  rankBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankBadgeText: {
+    color: '#0D0B0A',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  artistName: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  artistPlays: {
+    color: '#9E938F',
+    fontSize: 12,
+  },
+  albumCard: {
+    width: 130,
+    gap: 4,
+  },
+  albumImageContainer: {
+    width: 130,
+    height: 130,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E1918',
+  },
+  albumImage: {
+    width: '100%',
+    height: '100%',
+  },
+  albumTitle: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  albumArtist: {
+    color: '#9E938F',
+    fontSize: 12,
+  },
+  videoCard: {
+    width: '100%',
+    height: 190,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E1918',
+  },
+  videoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  videoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    gap: 2,
+  },
+  videoTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  videoArtist: {
+    color: '#A39893',
+    fontSize: 13,
+  },
+  footerAttr: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 2,
+  },
+  footerAttrText: {
+    color: '#6E6460',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  footerBrandText: {
+    color: '#6E6460',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  resultsSection: {
+    marginTop: 10,
+    gap: 12,
+  },
+  cardContainer: {
+    backgroundColor: '#1E1918',
+    borderRadius: 24,
+    padding: 6,
     gap: 2,
   },
   loaderBox: {
@@ -499,8 +638,5 @@ const styles = StyleSheet.create({
     left: 14,
     right: 14,
     zIndex: 900,
-  },
-  pressed: {
-    opacity: 0.8,
   },
 });
