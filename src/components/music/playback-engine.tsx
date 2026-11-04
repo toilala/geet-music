@@ -5,8 +5,9 @@ import { usePlayer } from '@/context/player-context';
 
 export function PlaybackEngine() {
   const playerRef = useRef<YoutubeIframeRef | null>(null);
-  const selectedAt = useRef(0);
   const recordedTrack = useRef<string | null>(null);
+  const retryCount = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     activeTrack,
     playing,
@@ -19,8 +20,15 @@ export function PlaybackEngine() {
   } = usePlayer();
 
   useEffect(() => {
-    selectedAt.current = Date.now();
     recordedTrack.current = null;
+    retryCount.current = 0;
+    if (retryTimer.current) {
+      clearTimeout(retryTimer.current);
+      retryTimer.current = null;
+    }
+    return () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
   }, [activeTrack.id, activeTrack.videoId]);
 
   useEffect(() => {
@@ -79,6 +87,7 @@ export function PlaybackEngine() {
   return (
     <YoutubePlayer
       ref={playerRef}
+      key={activeTrack.videoId}
       height={200}
       width={200}
       videoId={activeTrack.videoId}
@@ -91,10 +100,19 @@ export function PlaybackEngine() {
         androidLayerType: 'hardware',
       }}
       onChangeState={handleStateChange}
-      onError={() => {
+      onError={(error: string) => {
+        if (retryCount.current === 0) {
+          retryCount.current = 1;
+          setPlaying(false);
+          retryTimer.current = setTimeout(() => {
+            retryTimer.current = null;
+            setPlaying(true);
+          }, 500);
+          return;
+        }
+        setPlaying(false);
         setStatus('error');
-        // Auto-advance if video is unavailable or restricted
-        setTimeout(() => playNext(), 1200);
+        console.warn('Playback error for track:', activeTrack.title, error);
       }}
       onReady={() => {
         setStatus('ready');

@@ -92,7 +92,7 @@ export default function AppTabs() {
 
           {/* Right: Round Search button */}
           <Pressable
-            onPress={() => handleTabPress('/(tabs)/explore')}
+            onPress={() => handleTabPress('/recognition')}
             style={({ pressed }) => [
               styles.circleDockBtn,
               isExplore && styles.activeCircleBtn,
@@ -126,7 +126,7 @@ export default function AppTabs() {
 
           {/* Tab 2: Mic / Voice Discovery */}
           <Pressable
-            onPress={() => handleTabPress('/(tabs)/explore')}
+            onPress={() => handleTabPress('/recognition')}
             style={({ pressed }) => [styles.iconOnlyBtn, pressed && styles.pressed]}>
             <SymbolView
               name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
@@ -168,7 +168,7 @@ export default function AppTabs() {
 
           {/* Tab 5: Arrow forward */}
           <Pressable
-            onPress={() => handleTabPress('/(tabs)/explore')}
+            onPress={() => handleTabPress('/browse')}
             style={({ pressed }) => [styles.iconOnlyBtn, pressed && styles.pressed]}>
             <SymbolView
               name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}

@@ -41,6 +41,9 @@ yarn-error.*
 
 example
 
+# local Echo project
+/echo/
+
 # generated native folders
 /ios
 /android

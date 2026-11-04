@@ -19,7 +19,7 @@ export type ListeningSignal = {
   lastPlayedAt: number;
 };
 
-type SignalStore = Record<string, ListeningSignal>;
+export type SignalStore = Record<string, ListeningSignal>;
 
 export async function readSignals(): Promise<SignalStore> {
   try {

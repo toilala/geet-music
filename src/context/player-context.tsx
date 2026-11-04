@@ -16,6 +16,7 @@ import { tracks, type RepeatMode, type Track } from '@/data/music';
 import type { PlaybackSnapshot, PlaybackStatus } from '@/services/playback';
 import { recordSignal, type ListeningSignalType } from '@/services/recommendations';
 import { getRelatedTracks } from '@/services/youtube';
+import { generateEchoBrainQueue } from '@/services/echo-brain';
 import type { ThemeMode } from '@/constants/theme';
 
 type PlayerController = {
@@ -90,27 +91,31 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
   // Auto-discover and populate queue with fresh recommendations based on listening
   const discoveredArtists = useRef(new Set<string>());
+  const brainEnabled = useRef(true);
   useEffect(() => {
     if (!activeTrack?.artist) return;
     if (discoveredArtists.current.has(activeTrack.artist)) return;
     discoveredArtists.current.add(activeTrack.artist);
 
     let mounted = true;
-    void getRelatedTracks(activeTrack).then((related) => {
-      if (mounted && related.length > 0) {
-        setQueue((curr) => {
-          const existingIds = new Set(curr.map((t) => t.id));
-          const newItems = related.filter((t) => !existingIds.has(t.id));
-          if (newItems.length === 0) return curr;
-          return [...curr, ...newItems];
-        });
-      }
-    });
+    if (brainEnabled.current) {
+      void generateEchoBrainQueue(activeTrack, queue, { minQueueSize: 5, maxInjected: 8 }).then((result) => {
+        if (mounted && result.tracks.length > queue.length) {
+          setQueue(result.tracks);
+          setOriginalQueue((current) => {
+            const existing = new Set(current.map((track) => track.id));
+            return [...current, ...result.tracks.filter((track) => !existing.has(track.id))];
+          });
+        }
+      }).catch((error) => {
+        console.warn('Echo Brain queue injection failed:', error);
+      });
+    }
 
     return () => {
       mounted = false;
     };
-  }, [activeTrack]);
+  }, [activeTrack, queue]);
 
   // Sleep timer countdown
   useEffect(() => {

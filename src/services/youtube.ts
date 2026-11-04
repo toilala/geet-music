@@ -92,7 +92,7 @@ export async function searchYouTube(query: string): Promise<Track[]> {
         const pipedTracks: Track[] = pipedData.items
           .filter((item) => (item.duration ?? 0) >= 60 && !isShortFormTitle(item.title ?? ''))
           .map((item) => {
-          const videoId = (item.url ?? '').replace('/watch?v=', '').trim();
+          const videoId = extractVideoId(item.url);
           const durSec = item.duration ?? 220;
           const mins = Math.floor(durSec / 60);
           const secs = durSec % 60;
@@ -160,6 +160,13 @@ function parseIsoDuration(value?: string): number {
 
 function isShortFormTitle(title: string): boolean {
   return /(^|\s)#?shorts?\b|(^|\s)short\s*video\b/i.test(title);
+}
+
+function extractVideoId(value?: string): string {
+  if (!value) return '';
+  const match = value.match(/(?:[?&]v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/);
+  if (match) return match[1];
+  return /^[A-Za-z0-9_-]{11}$/.test(value.trim()) ? value.trim() : '';
 }
 
 export async function getPopularYouTube(): Promise<Track[]> {

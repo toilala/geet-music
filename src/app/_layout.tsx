@@ -33,6 +33,8 @@ export default function RootLayout() {
                 <AnimatedSplashOverlay />
                 <Stack>
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="recognition" options={{ headerShown: false, presentation: 'modal' }} />
+                  <Stack.Screen name="browse" options={{ headerShown: false }} />
                   <Stack.Screen name="player/[id]" options={{ headerShown: false, presentation: 'modal' }} />
                 </Stack>
               </LibraryProvider>
