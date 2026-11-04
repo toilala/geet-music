@@ -23,7 +23,7 @@ import { Colors } from '@/constants/theme';
 import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
 import { tracks, type Track } from '@/data/music';
-import { getLyrics } from '@/services/lyrics';
+import { getLyrics, lyricText } from '@/services/lyrics';
 
 const colors = Colors.dark;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -250,7 +250,7 @@ export default function PlayerScreen() {
                       onPress={() => seekTo(line.startTime / 1000)}
                       style={[styles.lyricLineWrap, isActive && styles.lyricLineActiveWrap]}>
                       <Text style={[styles.lyricLineText, isActive && styles.lyricLineActiveText]}>
-                        {line.text}
+                        {lyricText(line)}
                       </Text>
                     </Pressable>
                   );

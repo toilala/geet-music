@@ -9,8 +9,11 @@ export const Colors = {
     textSecondary: '#9AA7A3',
     textMuted: '#687773',
     background: '#0D1110',
+    backgroundElement: '#1A2523',
+    backgroundSelected: '#2D5A54',
     backgroundSurface: '#131817',
     backgroundCard: '#1A201E',
+    surface: '#17201F',
     surfaceHigh: '#222A28',
     surfaceHighest: '#2B3533',
     primary: '#7CD5C6',
@@ -42,8 +45,11 @@ export const Colors = {
     textSecondary: '#526360',
     textMuted: '#7D8E8B',
     background: '#F5FAF8',
+    backgroundElement: '#E7F2EF',
+    backgroundSelected: '#B8E1D9',
     backgroundSurface: '#EBF4F1',
     backgroundCard: '#DFECE8',
+    surface: '#F6FBF9',
     surfaceHigh: '#D3E3DF',
     surfaceHighest: '#C5D8D3',
     primary: '#176B63',
@@ -72,6 +78,40 @@ export const Colors = {
 } as const;
 
 export type ThemeColor = keyof typeof Colors.dark;
+
+export const Fonts = Platform.select({
+  ios: {
+    sans: 'system-ui',
+    serif: 'ui-serif',
+    rounded: 'ui-rounded',
+    mono: 'ui-monospace',
+  },
+  default: {
+    sans: 'normal',
+    serif: 'serif',
+    rounded: 'normal',
+    mono: 'monospace',
+  },
+  web: {
+    sans: 'var(--font-display)',
+    serif: 'var(--font-serif)',
+    rounded: 'var(--font-rounded)',
+    mono: 'var(--font-mono)',
+  },
+});
+
+export const Spacing = {
+  half: 2,
+  one: 4,
+  two: 8,
+  three: 16,
+  four: 24,
+  five: 32,
+  six: 64,
+} as const;
+
+export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+export const MaxContentWidth = 800;
 
 export const GlassStyles = StyleSheet.create({
   card: {
