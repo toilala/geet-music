@@ -27,7 +27,7 @@ type PopularResponse = {
 };
 
 const cache = new Map<string, { expires: number; tracks: Track[] }>();
-const CACHE_TTL = 10 * 60 * 1000;
+const CACHE_TTL = 15 * 60 * 1000;
 
 function getApiKey(): string | null {
   return process.env.EXPO_PUBLIC_YOUTUBE_API_KEY ?? null;
@@ -46,7 +46,7 @@ export async function searchYouTube(query: string): Promise<Track[]> {
     try {
       const params = new URLSearchParams({
         part: 'snippet',
-        q: `${trimmed} music`,
+        q: `${trimmed}`,
         type: 'video',
         videoCategoryId: '10',
         maxResults: '25',
@@ -72,23 +72,26 @@ export async function searchYouTube(query: string): Promise<Track[]> {
     } catch {}
   }
 
+  // Fallback to Piped search for unlimited video discovery
   try {
-    const pipedUrl = `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(trimmed + ' music')}&filter=videos`;
+    const pipedUrl = `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(trimmed)}&filter=videos`;
     const pipedResponse = await fetchWithTimeout(pipedUrl, 4000);
     if (pipedResponse.ok) {
-      const pipedData = (await pipedResponse.json()) as { items?: { url?: string; title?: string; uploaderName?: string; thumbnail?: string; duration?: number }[] };
+      const pipedData = (await pipedResponse.json()) as {
+        items?: { url?: string; title?: string; uploaderName?: string; thumbnail?: string; duration?: number }[];
+      };
       if (pipedData.items && pipedData.items.length > 0) {
         const pipedTracks: Track[] = pipedData.items.map((item) => {
           const videoId = (item.url ?? '').replace('/watch?v=', '') || String(Math.random());
-          const durSec = item.duration ?? 180;
+          const durSec = item.duration ?? 220;
           const mins = Math.floor(durSec / 60);
           const secs = durSec % 60;
           return {
             id: videoId,
             videoId,
             title: decodeHtmlEntities(item.title ?? 'Unknown Track'),
-            artist: item.uploaderName ?? 'YouTube Artist',
-            artwork: item.thumbnail ?? 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=600&q=85',
+            artist: item.uploaderName ?? 'Artist',
+            artwork: item.thumbnail ?? 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&q=85',
             duration: `${mins}:${secs < 10 ? '0' : ''}${secs}`,
             durationSeconds: durSec,
           };
@@ -99,18 +102,28 @@ export async function searchYouTube(query: string): Promise<Track[]> {
     }
   } catch {}
 
-  const localMatches = tracks.filter((t) =>
-    t.title.toLowerCase().includes(trimmed) ||
-    t.artist.toLowerCase().includes(trimmed) ||
-    (t.album && t.album.toLowerCase().includes(trimmed))
+  const localMatches = tracks.filter(
+    (t) =>
+      t.title.toLowerCase().includes(trimmed) ||
+      t.artist.toLowerCase().includes(trimmed) ||
+      (t.album && t.album.toLowerCase().includes(trimmed))
   );
 
   return localMatches.length > 0 ? localMatches : tracks;
 }
 
 export async function getPopularYouTube(): Promise<Track[]> {
-  const cached = cache.get('popular');
+  const cached = cache.get('popular-nepali');
   if (cached && cached.expires > Date.now()) return cached.tracks;
+
+  // Search trending regional songs
+  try {
+    const regionalTrending = await searchYouTube('nepali songs latest trending hits 2024');
+    if (regionalTrending.length > 0) {
+      cache.set('popular-nepali', { expires: Date.now() + CACHE_TTL, tracks: regionalTrending });
+      return regionalTrending;
+    }
+  } catch {}
 
   const apiKey = getApiKey();
   if (apiKey) {
@@ -119,16 +132,16 @@ export async function getPopularYouTube(): Promise<Track[]> {
         part: 'snippet',
         chart: 'mostPopular',
         videoCategoryId: '10',
-        regionCode: 'US',
-        maxResults: '15',
+        regionCode: 'NP',
+        maxResults: '20',
         key: apiKey,
       });
       const response = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
       if (response.ok) {
         const data = (await response.json()) as PopularResponse;
-        const result = (data.items ?? []).flatMap((item) => item.id ? [toTrack(item.id, item.snippet)] : []);
+        const result = (data.items ?? []).flatMap((item) => (item.id ? [toTrack(item.id, item.snippet)] : []));
         if (result.length > 0) {
-          cache.set('popular', { expires: Date.now() + CACHE_TTL, tracks: result });
+          cache.set('popular-nepali', { expires: Date.now() + CACHE_TTL, tracks: result });
           return result;
         }
       }
@@ -158,20 +171,34 @@ export async function getSearchSuggestions(query: string): Promise<string[]> {
   } catch {}
 
   return tracks
-    .filter((t) => t.title.toLowerCase().startsWith(trimmed.toLowerCase()) || t.artist.toLowerCase().startsWith(trimmed.toLowerCase()))
+    .filter(
+      (t) =>
+        t.title.toLowerCase().startsWith(trimmed.toLowerCase()) ||
+        t.artist.toLowerCase().startsWith(trimmed.toLowerCase())
+    )
     .map((t) => `${t.title} - ${t.artist}`)
     .slice(0, 5);
 }
 
+// Continuous Song Discovery Engine (like Echo Brain / Radio)
 export async function getRelatedTracks(currentTrack: Track): Promise<Track[]> {
-  const query = `${currentTrack.artist} similar music`;
-  try {
-    const list = await searchYouTube(query);
-    const filtered = list.filter((item) => item.id !== currentTrack.id);
-    return filtered.length > 0 ? filtered : tracks.filter((t) => t.id !== currentTrack.id);
-  } catch {
-    return tracks.filter((t) => t.id !== currentTrack.id);
+  const queries = [
+    `${currentTrack.artist} songs`,
+    `${currentTrack.artist} similar nepali music`,
+    `${currentTrack.title} nepali radio station`,
+  ];
+
+  for (const query of queries) {
+    try {
+      const list = await searchYouTube(query);
+      const filtered = list.filter((item) => item.id !== currentTrack.id && item.videoId !== currentTrack.videoId);
+      if (filtered.length >= 4) {
+        return filtered;
+      }
+    } catch {}
   }
+
+  return tracks.filter((t) => t.id !== currentTrack.id);
 }
 
 async function fetchWithTimeout(url: string, timeoutMs = 7000) {
@@ -187,7 +214,8 @@ async function fetchWithTimeout(url: string, timeoutMs = 7000) {
 function toTrack(videoId: string, snippet?: VideoSnippet): Track {
   const rawTitle = snippet?.title ?? 'Untitled track';
   const clean = cleanTrackTitle(rawTitle);
-  const artwork = snippet?.thumbnails?.high?.url ??
+  const artwork =
+    snippet?.thumbnails?.high?.url ??
     snippet?.thumbnails?.medium?.url ??
     snippet?.thumbnails?.default?.url ??
     `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -196,10 +224,10 @@ function toTrack(videoId: string, snippet?: VideoSnippet): Track {
     id: videoId,
     videoId,
     title: clean.title,
-    artist: snippet?.channelTitle?.replace(' - Topic', '') ?? clean.artist ?? 'YouTube Music',
+    artist: snippet?.channelTitle?.replace(' - Topic', '') ?? clean.artist ?? 'Geet Artist',
     artwork,
-    duration: '3:30',
-    durationSeconds: 210,
+    duration: '4:15',
+    durationSeconds: 255,
   };
 }
 

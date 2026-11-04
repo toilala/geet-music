@@ -2,10 +2,8 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
 import type { Track } from '@/data/music';
 
-const colors = Colors.dark;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.78;
 const CARD_HEIGHT = 300;
@@ -16,7 +14,7 @@ type Props = {
 };
 
 export function HeroCarousel({ tracks, onPlayTrack }: Props) {
-  const featuredTracks = tracks.slice(0, 5);
+  const featuredTracks = tracks.slice(0, 6);
 
   return (
     <ScrollView
@@ -26,25 +24,7 @@ export function HeroCarousel({ tracks, onPlayTrack }: Props) {
       snapToInterval={CARD_WIDTH + 14}
       decelerationRate="fast"
       contentContainerStyle={styles.container}>
-      {/* Slide 1: Featured Lyric Card like in Echo Music Screenshot 1 */}
-      <Pressable
-        onPress={() => onPlayTrack(featuredTracks[0] ?? tracks[0])}
-        style={({ pressed }) => [styles.card, styles.lyricCard, pressed && styles.pressed]}>
-        <View style={styles.lyricContent}>
-          <Text style={styles.lyricLine}>Found myself dreaming</Text>
-          <Text style={styles.lyricLine}>In silver and gold</Text>
-          <Text style={styles.lyricLine}>Like a scene from a movie</Text>
-          <Text style={styles.lyricLine}>That every broken heart knows</Text>
-        </View>
-        <View style={styles.cardFooter}>
-          <Text numberOfLines={1} style={styles.cardTitle}>
-            {featuredTracks[0]?.title ?? 'Meghan Trainor Ft John Legend'}
-          </Text>
-          <Text style={styles.cardSubtitle}>Song Lyrics</Text>
-        </View>
-      </Pressable>
-
-      {/* Subsequent Slides: Large Artwork Cards with bottom gradient like in Echo Music Screenshot 2 */}
+      {/* Featured Artwork Cards with bottom gradient matching Echo Music Screenshots */}
       {featuredTracks.map((item, index) => (
         <Pressable
           key={`hero-${item.id}-${index}`}
@@ -57,7 +37,7 @@ export function HeroCarousel({ tracks, onPlayTrack }: Props) {
             transition={200}
           />
           <LinearGradient
-            colors={['transparent', 'rgba(10, 14, 13, 0.4)', 'rgba(10, 14, 13, 0.95)']}
+            colors={['transparent', 'rgba(10, 14, 13, 0.3)', 'rgba(10, 14, 13, 0.95)']}
             style={styles.gradientOverlay}
           />
           <View style={styles.cardFooter}>
@@ -70,6 +50,23 @@ export function HeroCarousel({ tracks, onPlayTrack }: Props) {
           </View>
         </Pressable>
       ))}
+
+      {/* Synchronized Lyric Highlight Card */}
+      <Pressable
+        onPress={() => onPlayTrack(featuredTracks[0] ?? tracks[0])}
+        style={({ pressed }) => [styles.card, styles.lyricCard, pressed && styles.pressed]}>
+        <View style={styles.lyricContent}>
+          <Text style={styles.lyricLine}>सानेको रिसाउने बानी भो</Text>
+          <Text style={styles.lyricLine}>कहिल्यै नहाँस्ने, कहिल्यै नबोल्ने</Text>
+          <Text style={styles.lyricLine}>के तिम्रो अनौठो चाला यो?</Text>
+        </View>
+        <View style={styles.cardFooter}>
+          <Text numberOfLines={1} style={styles.cardTitle}>
+            Saani Ko · 1974AD
+          </Text>
+          <Text style={styles.cardSubtitle}>Lyrics from YouLyPlus</Text>
+        </View>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -78,7 +75,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     gap: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   card: {
     width: CARD_WIDTH,
@@ -111,7 +108,7 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 27,
+    lineHeight: 28,
     letterSpacing: -0.3,
   },
   gradientOverlay: {

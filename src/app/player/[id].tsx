@@ -51,6 +51,10 @@ export default function PlayerScreen() {
     togglePlayback,
     seekTo,
     setPlayback,
+    shuffleEnabled,
+    toggleShuffle,
+    repeatMode,
+    toggleRepeat,
     removeFromQueue,
     clearQueue,
     sleepTimerRemaining,
@@ -150,15 +154,6 @@ export default function PlayerScreen() {
   const handleVolumePress = (locationX: number) => {
     const ratio = Math.max(0, Math.min(locationX / volumeWidth, 1));
     setVolume(Math.round(ratio * 100));
-  };
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        title: track.title,
-        message: `Listening to "${track.title}" by ${track.artist} on Geet Music!`,
-      });
-    } catch {}
   };
 
   return (
@@ -320,8 +315,20 @@ export default function PlayerScreen() {
         </View>
       </View>
 
-      {/* Large Transport Controls matching Echo Music Screenshot 3 */}
+      {/* Large Transport Controls matching Echo Music with working Shuffle and Repeat */}
       <View style={styles.controlsRow}>
+        <Pressable
+          onPress={toggleShuffle}
+          hitSlop={14}
+          accessibilityLabel="Shuffle"
+          style={styles.sideControlBtn}>
+          <SymbolView
+            name={{ ios: 'shuffle', android: 'shuffle', web: 'shuffle' }}
+            tintColor={shuffleEnabled ? colors.primary : '#8FA09B'}
+            size={22}
+          />
+        </Pressable>
+
         <Pressable
           onPress={playPrevious}
           hitSlop={16}
@@ -330,7 +337,7 @@ export default function PlayerScreen() {
           <SymbolView
             name={{ ios: 'backward.fill', android: 'fast_rewind', web: 'fast_rewind' }}
             tintColor="#FFFFFF"
-            size={32}
+            size={30}
           />
         </Pressable>
 
@@ -357,8 +364,23 @@ export default function PlayerScreen() {
           <SymbolView
             name={{ ios: 'forward.fill', android: 'fast_forward', web: 'fast_forward' }}
             tintColor="#FFFFFF"
-            size={32}
+            size={30}
           />
+        </Pressable>
+
+        <Pressable
+          onPress={toggleRepeat}
+          hitSlop={14}
+          accessibilityLabel="Repeat mode"
+          style={styles.sideControlBtn}>
+          <View style={styles.repeatBadgeWrap}>
+            <SymbolView
+              name={{ ios: 'repeat', android: 'repeat', web: 'repeat' }}
+              tintColor={repeatMode !== 'off' ? colors.primary : '#8FA09B'}
+              size={22}
+            />
+            {repeatMode === 'one' && <Text style={styles.repeatOneText}>1</Text>}
+          </View>
         </Pressable>
       </View>
 
@@ -701,7 +723,23 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   controlIconBtn: {
-    padding: 12,
+    padding: 10,
+  },
+  sideControlBtn: {
+    padding: 10,
+  },
+  repeatBadgeWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repeatOneText: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.primary,
   },
   playPauseFab: {
     width: 72,

@@ -3,7 +3,17 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddToPlaylistSheet } from '@/components/music/add-to-playlist-sheet';
@@ -18,7 +28,7 @@ import { Colors } from '@/constants/theme';
 import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
 import { collections, moodCategories, tracks, type MoodCategory, type Track } from '@/data/music';
-import { getMusicByMood, getPopularYouTube } from '@/services/youtube';
+import { getMusicByMood, getPopularYouTube, searchYouTube } from '@/services/youtube';
 
 const colors = Colors.dark;
 
@@ -33,6 +43,11 @@ export default function HomeScreen() {
   const [moodTracks, setMoodTracks] = useState<Track[]>([]);
   const [loadingMood, setLoadingMood] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Quick Search directly on Home
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Track[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
@@ -76,6 +91,27 @@ export default function HomeScreen() {
       mounted = false;
     };
   }, [selectedMood]);
+
+  // Live search debouncing on Home
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+
+    const timer = setTimeout(() => {
+      setIsSearching(true);
+      void searchYouTube(trimmed).then((res) => {
+        setSearchResults(res);
+        setIsSearching(false);
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setIsSearching(false);
+  };
 
   const handleSelectMood = (mood: MoodCategory) => {
     setSelectedMood(mood);
@@ -124,8 +160,8 @@ export default function HomeScreen() {
     playlistSheetRef.current?.present();
   };
 
-  const listenAgainTracks = history.length > 0 ? history.slice(0, 6) : homeTracks.slice(0, 6);
-  const newReleases = homeTracks.slice(6, 14);
+  const listenAgainTracks = history.length > 0 ? history.slice(0, 8) : homeTracks.slice(0, 8);
+  const newReleases = homeTracks.slice(4, 12);
 
   return (
     <View style={styles.screen}>
@@ -134,38 +170,60 @@ export default function HomeScreen() {
           styles.content,
           { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 140 },
         ]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }>
-        {/* Expressive Header without logo icon, creative typography */}
+        {/* Expressive Header without logo icon, clean typography */}
         <ExpressiveHeader />
 
-        {/* Mood Filter Pills matching Echo Music */}
-        <MoodPills selectedMoodId={selectedMood.id} onSelectMood={handleSelectMood} />
+        {/* Home Search Bar: Allows instant searching right on Home */}
+        <View style={styles.homeSearchWrapper}>
+          <View style={styles.searchBar}>
+            <SymbolView
+              name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
+              tintColor="#8EA09B"
+              size={18}
+            />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search songs, artists, or albums..."
+              placeholderTextColor="#7C8D89"
+              style={styles.searchInput}
+              returnKeyType="search"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={handleClearSearch} hitSlop={10} style={styles.clearSearchBtn}>
+                <SymbolView
+                  name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }}
+                  tintColor="#9EAAA6"
+                  size={18}
+                />
+              </Pressable>
+            )}
+          </View>
+        </View>
 
-        {selectedMood.id !== 'all' ? (
-          <View style={styles.moodSection}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>{selectedMood.label} Mix</Text>
-                <Text style={styles.sectionSubtitle}>Handpicked tracks for your mood</Text>
-              </View>
-            </View>
-
-            {loadingMood ? (
+        {/* If searching, render live search results on Home */}
+        {searchQuery.trim().length > 0 ? (
+          <View style={styles.searchResultsSection}>
+            <Text style={styles.searchResultsTitle}>Search Results</Text>
+            {isSearching ? (
               <View style={styles.loaderBox}>
                 <ActivityIndicator color={colors.primary} />
-                <Text style={styles.loaderText}>Finding {selectedMood.label} tracks...</Text>
+                <Text style={styles.loaderText}>Finding tracks...</Text>
               </View>
             ) : (
               <View style={styles.cardContainer}>
-                {moodTracks.map((track) => (
+                {searchResults.map((track) => (
                   <SongRow
                     key={track.id}
                     track={track}
                     active={track.id === activeTrack.id && playing}
-                    onPress={() => handlePlayTrack(track, moodTracks)}
+                    onPress={() => handlePlayTrack(track, searchResults)}
                     onOptionsPress={openOptions}
                   />
                 ))}
@@ -174,93 +232,128 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {/* Hero Carousel with Lyrics & Featured Artwork matching Echo Music */}
-            <HeroCarousel tracks={homeTracks} onPlayTrack={(t) => handlePlayTrack(t, homeTracks)} />
+            {/* Mood Filter Pills matching Echo Music */}
+            <MoodPills selectedMoodId={selectedMood.id} onSelectMood={handleSelectMood} />
 
-            {/* "N K / LISTEN AGAIN" Section matching Echo Music Screenshots 1 & 2 */}
-            <View style={styles.sectionWrap}>
-              <View style={styles.listenAgainHeader}>
-                <View style={styles.userSectionTitleGroup}>
-                  <Image
-                    source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=100&q=80"
-                    style={styles.listenAgainAvatar}
-                  />
+            {selectedMood.id !== 'all' ? (
+              <View style={styles.moodSection}>
+                <View style={styles.sectionHeader}>
                   <View>
-                    <Text style={styles.userHandle}>N K</Text>
-                    <Text style={styles.listenAgainTitle}>LISTEN AGAIN</Text>
+                    <Text style={styles.sectionTitle}>{selectedMood.label} Mix</Text>
+                    <Text style={styles.sectionSubtitle}>Handpicked tracks for your mood</Text>
                   </View>
                 </View>
-                <Pressable
-                  onPress={() => handlePlayTrack(listenAgainTracks[0], listenAgainTracks)}
-                  style={({ pressed }) => [styles.playAllBtn, pressed && styles.pressed]}>
-                  <Text style={styles.playAllText}>Play all</Text>
-                </Pressable>
-              </View>
 
-              {/* Grouped rounded container for song rows */}
-              <View style={styles.cardContainer}>
-                {listenAgainTracks.map((track) => (
-                  <SongRow
-                    key={track.id}
-                    track={track}
-                    active={track.id === activeTrack.id && playing}
-                    onPress={() => handlePlayTrack(track, listenAgainTracks)}
-                    onOptionsPress={openOptions}
-                  />
-                ))}
+                {loadingMood ? (
+                  <View style={styles.loaderBox}>
+                    <ActivityIndicator color={colors.primary} />
+                    <Text style={styles.loaderText}>Finding {selectedMood.label} tracks...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.cardContainer}>
+                    {moodTracks.map((track) => (
+                      <SongRow
+                        key={track.id}
+                        track={track}
+                        active={track.id === activeTrack.id && playing}
+                        onPress={() => handlePlayTrack(track, moodTracks)}
+                        onOptionsPress={openOptions}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
-            </View>
+            ) : (
+              <>
+                {/* Hero Carousel with Lyrics & Featured Artwork matching Echo Music */}
+                <HeroCarousel tracks={homeTracks} onPlayTrack={(t) => handlePlayTrack(t, homeTracks)} />
 
-            {/* "NEW RELEASES" Section matching Echo Music Screenshot 2 */}
-            <View style={styles.sectionWrap}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.newReleasesTitle}>NEW RELEASES</Text>
-                <SymbolView
-                  name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
-                  tintColor={colors.textSecondary}
-                  size={18}
-                />
-              </View>
+                {/* "N K / LISTEN AGAIN" Section matching Echo Music Screenshots */}
+                <View style={styles.sectionWrap}>
+                  <View style={styles.listenAgainHeader}>
+                    <View style={styles.userSectionTitleGroup}>
+                      <Image
+                        source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=100&q=80"
+                        style={styles.listenAgainAvatar}
+                      />
+                      <View>
+                        <Text style={styles.userHandle}>N K</Text>
+                        <Text style={styles.listenAgainTitle}>LISTEN AGAIN</Text>
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => handlePlayTrack(listenAgainTracks[0], listenAgainTracks)}
+                      style={({ pressed }) => [styles.playAllBtn, pressed && styles.pressed]}>
+                      <Text style={styles.playAllText}>Play all</Text>
+                    </Pressable>
+                  </View>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalRow}>
-                {newReleases.map((track) => (
-                  <AlbumCard
-                    key={track.id}
-                    collection={{
-                      id: track.id,
-                      title: track.title,
-                      subtitle: track.artist,
-                      artwork: track.artwork,
-                      accent: colors.primary,
-                      category: 'New Release',
-                    }}
-                    onPress={() => handlePlayTrack(track, newReleases)}
-                  />
-                ))}
-              </ScrollView>
-            </View>
+                  {/* Grouped rounded container for song rows */}
+                  <View style={styles.cardContainer}>
+                    {listenAgainTracks.map((track) => (
+                      <SongRow
+                        key={track.id}
+                        track={track}
+                        active={track.id === activeTrack.id && playing}
+                        onPress={() => handlePlayTrack(track, listenAgainTracks)}
+                        onOptionsPress={openOptions}
+                      />
+                    ))}
+                  </View>
+                </View>
 
-            {/* Mixed for You */}
-            <View style={styles.sectionWrap}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Mixed for you</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalRow}>
-                {collections.map((collection, idx) => (
-                  <AlbumCard
-                    key={collection.id}
-                    collection={collection}
-                    onPress={() => handlePlayTrack(homeTracks[idx % homeTracks.length])}
-                  />
-                ))}
-              </ScrollView>
-            </View>
+                {/* "NEW RELEASES" Section matching Echo Music */}
+                <View style={styles.sectionWrap}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.newReleasesTitle}>NEW RELEASES</Text>
+                    <SymbolView
+                      name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
+                      tintColor={colors.textSecondary}
+                      size={18}
+                    />
+                  </View>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalRow}>
+                    {newReleases.map((track) => (
+                      <AlbumCard
+                        key={track.id}
+                        collection={{
+                          id: track.id,
+                          title: track.title,
+                          subtitle: track.artist,
+                          artwork: track.artwork,
+                          accent: colors.primary,
+                          category: 'New Release',
+                        }}
+                        onPress={() => handlePlayTrack(track, newReleases)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Mixed for You */}
+                <View style={styles.sectionWrap}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Mixed for you</Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalRow}>
+                    {collections.map((collection, idx) => (
+                      <AlbumCard
+                        key={collection.id}
+                        collection={collection}
+                        onPress={() => handlePlayTrack(homeTracks[idx % homeTracks.length])}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -307,6 +400,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D1110',
   },
   content: {},
+  homeSearchWrapper: {
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontWeight: '500',
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  searchResultsSection: {
+    paddingHorizontal: 20,
+    marginTop: 10,
+    gap: 12,
+  },
+  searchResultsTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
   sectionWrap: {
     marginTop: 20,
     paddingHorizontal: 20,

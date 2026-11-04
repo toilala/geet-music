@@ -4,13 +4,10 @@ import { SymbolView } from 'expo-symbols';
 import { StyleSheet, Text, View, Pressable, Vibration } from 'react-native';
 
 import { Colors } from '@/constants/theme';
-import { usePlayer } from '@/context/player-context';
 
 const colors = Colors.dark;
 
 export function ExpressiveHeader() {
-  const { themeMode, toggleThemeMode } = usePlayer();
-
   const handleAction = () => {
     try {
       Vibration.vibrate(8);
@@ -20,26 +17,19 @@ export function ExpressiveHeader() {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        {/* Creative stylized brand text - NO icon, creative typographic identity */}
-        <View style={styles.brandWrap}>
-          <View style={styles.brandTextGroup}>
-            <Text style={styles.brandPrimary}>Geet</Text>
-            <Text style={styles.brandSecondary}>Music</Text>
-            <View style={styles.pulseDot} />
-          </View>
-          <Text style={styles.brandTagline}>
-            {themeMode === 'liquid-glass' ? 'Liquid Glass' : 'Expressive'}
-          </Text>
-        </View>
+        {/* Clean, authentic Geet Music typography matching Echo Music Screenshot 1 */}
+        <Pressable onPress={() => router.replace('/(tabs)')} style={styles.brandWrap}>
+          <Text style={styles.brandTitle}>Geet Music</Text>
+        </Pressable>
 
-        {/* Right action icons matching Echo Music: History, Trending, People, Profile Avatar */}
+        {/* Action icons matching Echo Music: History, Trending, People, Profile Avatar */}
         <View style={styles.actionRow}>
           {/* History */}
           <Pressable
             accessibilityLabel="Listening history"
             onPress={() => {
               handleAction();
-              router.push('/library');
+              router.push('/(tabs)/library');
             }}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
             <SymbolView
@@ -54,7 +44,7 @@ export function ExpressiveHeader() {
             accessibilityLabel="Charts and trending"
             onPress={() => {
               handleAction();
-              router.push('/explore');
+              router.push('/(tabs)/explore');
             }}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
             <SymbolView
@@ -69,7 +59,7 @@ export function ExpressiveHeader() {
             accessibilityLabel="Friends & shared music"
             onPress={() => {
               handleAction();
-              toggleThemeMode();
+              router.push('/(tabs)/library');
             }}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
             <SymbolView
@@ -79,12 +69,12 @@ export function ExpressiveHeader() {
             />
           </Pressable>
 
-          {/* User Profile Avatar with active ring */}
+          {/* User Profile Avatar with green status ring like in Echo Music */}
           <Pressable
             accessibilityLabel="User profile"
             onPress={() => {
               handleAction();
-              router.push('/library');
+              router.push('/(tabs)/library');
             }}
             style={({ pressed }) => [styles.avatarBtn, pressed && styles.pressed]}>
             <Image
@@ -104,7 +94,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 10,
+    paddingBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -112,46 +102,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   brandWrap: {
-    flexDirection: 'column',
     justifyContent: 'center',
   },
-  brandTextGroup: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  brandPrimary: {
+  brandTitle: {
     color: '#FFFFFF',
-    fontSize: 27,
+    fontSize: 26,
     fontWeight: '900',
-    letterSpacing: -0.8,
-  },
-  brandSecondary: {
-    color: colors.primary,
-    fontSize: 27,
-    fontWeight: '800',
     letterSpacing: -0.6,
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-    marginLeft: 2,
-    marginBottom: 4,
-  },
-  brandTagline: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginTop: -2,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   iconBtn: {
     width: 38,
@@ -172,7 +134,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: 'rgba(124, 213, 198, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   avatarOnlineDot: {
     position: 'absolute',
@@ -183,7 +145,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#3DD598',
     borderWidth: 2,
-    borderColor: colors.background,
+    borderColor: '#0D1110',
   },
   pressed: {
     opacity: 0.6,

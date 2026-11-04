@@ -25,7 +25,7 @@ export default function AppTabs() {
   return (
     <View style={[styles.floatingDock, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">
       <View style={styles.tabContainer}>
-        {/* Home Tab */}
+        {/* Tab 1: Home Pill */}
         <Pressable
           onPress={() => handleTabPress('/(tabs)')}
           style={({ pressed }) => [
@@ -36,28 +36,23 @@ export default function AppTabs() {
           <SymbolView
             name={{ ios: 'house.fill', android: 'home', web: 'home' }}
             tintColor={isHome ? '#FFFFFF' : colors.textSecondary}
-            size={20}
+            size={19}
           />
           {isHome && <Text style={styles.activeLabel}>Home</Text>}
         </Pressable>
 
-        {/* Explore / Flow Tab */}
+        {/* Tab 2: Mic / Voice Discovery */}
         <Pressable
           onPress={() => handleTabPress('/(tabs)/explore')}
-          style={({ pressed }) => [
-            styles.tabItem,
-            isExplore && styles.activePill,
-            pressed && styles.pressed,
-          ]}>
+          style={({ pressed }) => [styles.iconOnlyBtn, pressed && styles.pressed]}>
           <SymbolView
-            name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
-            tintColor={isExplore ? '#FFFFFF' : colors.textSecondary}
+            name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
+            tintColor={colors.textSecondary}
             size={20}
           />
-          {isExplore && <Text style={styles.activeLabel}>Explore</Text>}
         </Pressable>
 
-        {/* Library Tab */}
+        {/* Tab 3: Music Library */}
         <Pressable
           onPress={() => handleTabPress('/(tabs)/library')}
           style={({ pressed }) => [
@@ -73,13 +68,28 @@ export default function AppTabs() {
           {isLibrary && <Text style={styles.activeLabel}>Library</Text>}
         </Pressable>
 
-        {/* Search Shortcut */}
+        {/* Tab 4: Search Button */}
         <Pressable
           onPress={() => handleTabPress('/(tabs)/explore')}
-          style={({ pressed }) => [styles.searchCircle, pressed && styles.pressed]}>
+          style={({ pressed }) => [
+            styles.searchCircle,
+            isExplore && styles.activeSearchCircle,
+            pressed && styles.pressed,
+          ]}>
           <SymbolView
             name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
             tintColor="#FFFFFF"
+            size={18}
+          />
+        </Pressable>
+
+        {/* Tab 5: Arrow forward */}
+        <Pressable
+          onPress={() => handleTabPress('/(tabs)/explore')}
+          style={({ pressed }) => [styles.iconOnlyBtn, pressed && styles.pressed]}>
+          <SymbolView
+            name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
+            tintColor={colors.textSecondary}
             size={18}
           />
         </Pressable>
@@ -91,8 +101,8 @@ export default function AppTabs() {
 const styles = StyleSheet.create({
   floatingDock: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: 18,
+    right: 18,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
@@ -101,7 +111,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(18, 23, 21, 0.92)',
+    backgroundColor: 'rgba(18, 23, 21, 0.94)',
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 36,
@@ -112,17 +122,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 12,
-    minWidth: 280,
-    maxWidth: 360,
+    maxWidth: 380,
     width: '100%',
   },
   tabItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 26,
+    gap: 7,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
+    borderRadius: 24,
   },
   activePill: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
@@ -133,6 +142,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.2,
   },
+  iconOnlyBtn: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 19,
+  },
   searchCircle: {
     width: 40,
     height: 40,
@@ -140,10 +156,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 2,
+  },
+  activeSearchCircle: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   pressed: {
     opacity: 0.75,
-    transform: [{ scale: 0.95 }],
+    transform: [{ scale: 0.94 }],
   },
 });

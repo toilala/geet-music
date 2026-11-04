@@ -85,6 +85,30 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
   const controllerRef = useRef<PlayerController | null>(null);
 
+  // Auto-discover and populate queue with fresh recommendations based on listening
+  const discoveredArtists = useRef(new Set<string>());
+  useEffect(() => {
+    if (!activeTrack?.artist) return;
+    if (discoveredArtists.current.has(activeTrack.artist)) return;
+    discoveredArtists.current.add(activeTrack.artist);
+
+    let mounted = true;
+    void getRelatedTracks(activeTrack).then((related) => {
+      if (mounted && related.length > 0) {
+        setQueue((curr) => {
+          const existingIds = new Set(curr.map((t) => t.id));
+          const newItems = related.filter((t) => !existingIds.has(t.id));
+          if (newItems.length === 0) return curr;
+          return [...curr, ...newItems];
+        });
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTrack]);
+
   // Sleep timer countdown
   useEffect(() => {
     if (sleepTimerRemaining === null) return;
@@ -153,21 +177,22 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
     setQueue((currentQueue) => {
       if (currentQueue.length === 0) return currentQueue;
-      const currentIndex = currentQueue.findIndex(
-        (item) => item.id === activeTrack.id || item.videoId === activeTrack.videoId
-      );
 
-      if (currentIndex === currentQueue.length - 1 && repeatMode === 'off') {
-        // Wrap around anyway for endless listening like Echo Music
-        const firstTrack = currentQueue[0];
-        if (firstTrack) {
-          setActiveTrack(firstTrack);
+      if (shuffleEnabled && currentQueue.length > 1) {
+        const others = currentQueue.filter((item) => item.id !== activeTrack.id);
+        const randomTrack = others[Math.floor(Math.random() * others.length)];
+        if (randomTrack) {
+          setActiveTrack(randomTrack);
           setCurrentTime(0);
           setDuration(0);
           setPlaying(true);
+          return currentQueue;
         }
-        return currentQueue;
       }
+
+      const currentIndex = currentQueue.findIndex(
+        (item) => item.id === activeTrack.id || item.videoId === activeTrack.videoId
+      );
 
       const nextIndex = (currentIndex + 1) % currentQueue.length;
       const nextTrack = currentQueue[nextIndex];
@@ -179,7 +204,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       }
       return currentQueue;
     });
-  }, [activeTrack.id, activeTrack.videoId, repeatMode]);
+  }, [activeTrack.id, activeTrack.videoId, repeatMode, shuffleEnabled]);
 
   const playPrevious = useCallback(() => {
     try {
@@ -194,6 +219,19 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
     setQueue((currentQueue) => {
       if (currentQueue.length === 0) return currentQueue;
+
+      if (shuffleEnabled && currentQueue.length > 1) {
+        const others = currentQueue.filter((item) => item.id !== activeTrack.id);
+        const randomTrack = others[Math.floor(Math.random() * others.length)];
+        if (randomTrack) {
+          setActiveTrack(randomTrack);
+          setCurrentTime(0);
+          setDuration(0);
+          setPlaying(true);
+          return currentQueue;
+        }
+      }
+
       const currentIndex = currentQueue.findIndex(
         (item) => item.id === activeTrack.id || item.videoId === activeTrack.videoId
       );
@@ -207,7 +245,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       }
       return currentQueue;
     });
-  }, [activeTrack.id, activeTrack.videoId, currentTime]);
+  }, [activeTrack.id, activeTrack.videoId, currentTime, shuffleEnabled]);
 
   const registerController = useCallback((controller: PlayerController | null) => {
     controllerRef.current = controller;
@@ -243,11 +281,11 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
   const toggleShuffle = useCallback(() => {
     try {
-      Vibration.vibrate(10);
+      Vibration.vibrate(12);
     } catch {}
     setShuffleEnabled((prev) => {
-      const nextState = !prev;
-      if (nextState) {
+      const next = !prev;
+      if (next) {
         setQueue((curr) => {
           const others = curr.filter((t) => t.id !== activeTrack.id);
           for (let i = others.length - 1; i > 0; i--) {
@@ -259,7 +297,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       } else {
         setQueue(originalQueue);
       }
-      return nextState;
+      return next;
     });
   }, [activeTrack, originalQueue]);
 
