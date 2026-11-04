@@ -14,7 +14,7 @@ import { Vibration } from 'react-native';
 
 import { tracks, type RepeatMode, type Track } from '@/data/music';
 import type { PlaybackSnapshot, PlaybackStatus } from '@/services/playback';
-import { recordSignal } from '@/services/recommendations';
+import { recordSignal, type ListeningSignalType } from '@/services/recommendations';
 import { getRelatedTracks } from '@/services/youtube';
 import type { ThemeMode } from '@/constants/theme';
 
@@ -40,7 +40,7 @@ type PlayerContextValue = {
   setThemeMode: (mode: ThemeMode) => void;
   toggleThemeMode: () => void;
   setStatus: (status: PlaybackStatus) => void;
-  recordTrackSignal: (signal: 'play' | 'complete' | 'skip' | 'like' | 'expose') => void;
+  recordTrackSignal: (signal: ListeningSignalType) => void;
   selectTrack: (track: Track, newQueue?: Track[]) => void;
   playNext: () => void;
   playPrevious: () => void;
@@ -77,7 +77,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(85);
-  const [themeMode, setThemeMode] = useState<ThemeMode>('liquid-glass');
+  const [themeMode, setThemeMode] = useState<ThemeMode>('material-expressive');
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>('idle');
   const [playbackSource] = useState<PlaybackSnapshot['source']>('youtube-iframe');
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
@@ -272,7 +272,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const setStatus = useCallback((status: PlaybackStatus) => setPlaybackStatus(status), []);
 
   const recordTrackSignal = useCallback(
-    (signal: 'play' | 'complete' | 'skip' | 'like' | 'expose') => {
+    (signal: ListeningSignalType) => {
       void recordSignal(activeTrack, signal);
     },
     [activeTrack]

@@ -4,7 +4,6 @@ import { tracks, type Track } from '@/data/music';
 import { searchYouTube } from '@/services/youtube';
 
 const STORAGE_KEY = '@geet/music-signals-v2';
-const TASTE_PROFILE_KEY = '@geet/taste-profile-v2';
 
 export type ListeningSignal = {
   trackId: string;
@@ -32,7 +31,9 @@ export async function readSignals(): Promise<SignalStore> {
   }
 }
 
-export async function recordSignal(track: Track, signal: 'play' | 'complete' | 'skip' | 'like') {
+export type ListeningSignalType = 'play' | 'complete' | 'skip' | 'like' | 'expose';
+
+export async function recordSignal(track: Track, signal: ListeningSignalType) {
   try {
     const signals = await readSignals();
     const current: ListeningSignal = signals[track.id] ?? {
@@ -112,18 +113,27 @@ export async function getBottom50Tracks(): Promise<Track[]> {
 // Dynamic Spotify/Echo Music-style recommendations based on real listening signals
 export async function getDynamicRecommendations(currentTrack?: Track): Promise<Track[]> {
   const signals = await readSignals();
-  const recentPlayed = Object.values(signals)
-    .sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)
-    .slice(0, 5);
+  const preferred = Object.values(signals)
+    .sort((a, b) => {
+      const scoreA = (a.liked ? 8 : 0) + a.plays * 2 + a.completed * 3 - a.skips * 2;
+      const scoreB = (b.liked ? 8 : 0) + b.plays * 2 + b.completed * 3 - b.skips * 2;
+      return scoreB - scoreA;
+    })
+    .slice(0, 4);
+  const anchors = currentTrack ? [currentTrack, ...preferred.filter((item) => item.trackId !== currentTrack.id)] : preferred;
+  const queries = anchors.slice(0, 3).map((item) => `${item.artist} similar music full songs`);
+  queries.push('new Nepali English music official audio');
 
-  const targetArtist = currentTrack?.artist ?? recentPlayed[0]?.artist ?? 'Top trending music';
-  const targetTitle = currentTrack?.title ?? recentPlayed[0]?.title ?? 'Popular songs';
+  const batches = await Promise.all(queries.map((query) => searchYouTube(query).catch(() => [])));
+  const seen = new Set<string>();
+  const result: Track[] = [];
+  for (const batch of batches) {
+    for (const track of batch) {
+      if (seen.has(track.id) || track.id === currentTrack?.id) continue;
+      seen.add(track.id);
+      result.push(track);
+    }
+  }
 
-  try {
-    const query = `${targetArtist} ${targetTitle} radio mix`;
-    const fetched = await searchYouTube(query);
-    if (fetched.length > 0) return fetched;
-  } catch {}
-
-  return tracks;
+  return result.length > 0 ? result.slice(0, 24) : tracks.filter((track) => track.id !== currentTrack?.id);
 }

@@ -12,6 +12,13 @@ type SearchResponse = {
   error?: { message?: string };
 };
 
+type VideoDetailsResponse = {
+  items?: {
+    id?: string;
+    contentDetails?: { duration?: string };
+  }[];
+};
+
 type VideoSnippet = {
   title?: string;
   channelTitle?: string;
@@ -58,11 +65,12 @@ export async function searchYouTube(query: string): Promise<Track[]> {
       const response = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
       if (response.ok) {
         const data = (await response.json()) as SearchResponse;
-        const result = (data.items ?? []).flatMap((item) => {
+        const candidates = (data.items ?? []).flatMap((item) => {
           const videoId = item.id?.videoId;
           if (!videoId) return [];
           return [toTrack(videoId, item.snippet)];
         });
+        const result = await filterFullLengthTracks(candidates);
 
         if (result.length > 0) {
           cache.set(cacheKey, { expires: Date.now() + CACHE_TTL, tracks: result });
@@ -81,8 +89,10 @@ export async function searchYouTube(query: string): Promise<Track[]> {
         items?: { url?: string; title?: string; uploaderName?: string; thumbnail?: string; duration?: number }[];
       };
       if (pipedData.items && pipedData.items.length > 0) {
-        const pipedTracks: Track[] = pipedData.items.map((item) => {
-          const videoId = (item.url ?? '').replace('/watch?v=', '') || String(Math.random());
+        const pipedTracks: Track[] = pipedData.items
+          .filter((item) => (item.duration ?? 0) >= 60 && !isShortFormTitle(item.title ?? ''))
+          .map((item) => {
+          const videoId = (item.url ?? '').replace('/watch?v=', '').trim();
           const durSec = item.duration ?? 220;
           const mins = Math.floor(durSec / 60);
           const secs = durSec % 60;
@@ -95,10 +105,12 @@ export async function searchYouTube(query: string): Promise<Track[]> {
             duration: `${mins}:${secs < 10 ? '0' : ''}${secs}`,
             durationSeconds: durSec,
           };
-        });
+          })
+          .filter((track) => track.videoId.length > 0);
         cache.set(cacheKey, { expires: Date.now() + CACHE_TTL, tracks: pipedTracks });
         return pipedTracks;
       }
+
     }
   } catch {}
 
@@ -110,6 +122,44 @@ export async function searchYouTube(query: string): Promise<Track[]> {
   );
 
   return localMatches.length > 0 ? localMatches : tracks;
+}
+
+async function filterFullLengthTracks(candidates: Track[]): Promise<Track[]> {
+  const filtered = candidates.filter((track) => !isShortFormTitle(track.title));
+  const apiKey = getApiKey();
+  if (!apiKey || filtered.length === 0) return filtered;
+
+  try {
+    const params = new URLSearchParams({
+      part: 'contentDetails',
+      id: filtered.map((track) => track.videoId).join(','),
+      key: apiKey,
+    });
+    const response = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
+    if (!response.ok) return filtered;
+    const data = (await response.json()) as VideoDetailsResponse;
+    const durations = new Map(
+      (data.items ?? [])
+        .filter((item): item is { id: string; contentDetails?: { duration?: string } } => Boolean(item.id))
+        .map((item) => [item.id, parseIsoDuration(item.contentDetails?.duration)])
+    );
+    return filtered
+      .map((track) => ({ ...track, durationSeconds: durations.get(track.videoId) ?? track.durationSeconds }))
+      .filter((track) => (track.durationSeconds ?? 0) >= 60);
+  } catch {
+    return filtered;
+  }
+}
+
+function parseIsoDuration(value?: string): number {
+  if (!value) return 0;
+  const match = value.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  return Number(match[1] ?? 0) * 3600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0);
+}
+
+function isShortFormTitle(title: string): boolean {
+  return /(^|\s)#?shorts?\b|(^|\s)short\s*video\b/i.test(title);
 }
 
 export async function getPopularYouTube(): Promise<Track[]> {

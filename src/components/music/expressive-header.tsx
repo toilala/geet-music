@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { StyleSheet, Text, View, Pressable, Vibration } from 'react-native';
@@ -77,11 +76,7 @@ export function ExpressiveHeader() {
               router.push('/(tabs)/library');
             }}
             style={({ pressed }) => [styles.avatarBtn, pressed && styles.pressed]}>
-            <Image
-              source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200&q=80"
-              style={styles.avatarImg}
-              contentFit="cover"
-            />
+            <Text style={styles.avatarText}>GM</Text>
             <View style={styles.avatarOnlineDot} />
           </Pressable>
         </View>
@@ -129,12 +124,18 @@ const styles = StyleSheet.create({
     marginLeft: 2,
     position: 'relative',
   },
-  avatarImg: {
+  avatarText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+    lineHeight: 36,
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: colors.primaryContainer,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: colors.outlineActive,
   },
   avatarOnlineDot: {
     position: 'absolute',

@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 
 import { Colors } from '@/constants/theme';
 import { usePlayer } from '@/context/player-context';
@@ -28,17 +29,49 @@ export function MiniPlayer({
   onOpen,
 }: Props) {
   const { isDockCollapsed } = usePlayer();
-  if (isDockCollapsed) return null;
+  const [visibility] = useState(() => new Animated.Value(isDockCollapsed ? 0 : 1));
+
+  useEffect(() => {
+    Animated.spring(visibility, {
+      toValue: isDockCollapsed ? 0 : 1,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 220,
+      mass: 0.8,
+    }).start();
+  }, [isDockCollapsed, visibility]);
 
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
 
   return (
-    <Pressable
-      onPress={onOpen}
-      accessibilityRole="button"
-      accessibilityLabel={`Now playing ${track.title} by ${track.artist}. Tap to open player.`}
-      style={({ pressed }) => [styles.wrapper, pressed && styles.pressed]}>
-      <View style={styles.container}>
+    <Animated.View
+      pointerEvents={isDockCollapsed ? 'none' : 'auto'}
+      style={[
+        styles.animatedWrapper,
+        {
+          opacity: visibility,
+          transform: [
+            {
+              translateY: visibility.interpolate({
+                inputRange: [0, 1],
+                outputRange: [18, 0],
+              }),
+            },
+            {
+              scale: visibility.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.96, 1],
+              }),
+            },
+          ],
+        },
+      ]}>
+      <Pressable
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={`Now playing ${track.title} by ${track.artist}. Tap to open player.`}
+        style={({ pressed }) => [styles.wrapper, pressed && styles.pressed]}>
+        <View style={styles.container}>
         {/* Rounded Artwork */}
         <Image
           source={track.artwork}
@@ -95,17 +128,21 @@ export function MiniPlayer({
             </Pressable>
           )}
         </View>
-      </View>
+        </View>
 
-      {/* Thin bottom progress line */}
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressValue, { width: `${progress * 100}%` }]} />
-      </View>
-    </Pressable>
+        {/* Thin bottom progress line */}
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressValue, { width: `${progress * 100}%` }]} />
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  animatedWrapper: {
+    width: '100%',
+  },
   wrapper: {
     borderRadius: 28,
     backgroundColor: 'rgba(23, 28, 26, 0.92)',

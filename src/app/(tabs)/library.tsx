@@ -211,11 +211,7 @@ export default function LibraryScreen() {
               />
             </Pressable>
             <Pressable style={styles.avatarBtn}>
-              <Image
-                source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200&q=80"
-                style={styles.avatarImg}
-                contentFit="cover"
-              />
+              <Text style={styles.avatarText}>GM</Text>
               <View style={styles.avatarOnlineDot} />
             </Pressable>
           </View>
@@ -562,12 +558,18 @@ const styles = StyleSheet.create({
     marginLeft: 2,
     position: 'relative',
   },
-  avatarImg: {
+  avatarText: {
     width: 34,
     height: 34,
     borderRadius: 17,
+    backgroundColor: colors.primaryContainer,
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '900',
+    textAlign: 'center',
+    lineHeight: 34,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: colors.outlineActive,
   },
   avatarOnlineDot: {
     position: 'absolute',

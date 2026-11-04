@@ -1,5 +1,4 @@
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
@@ -28,7 +27,8 @@ import { Colors } from '@/constants/theme';
 import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
 import { collections, moodCategories, tracks, type MoodCategory, type Track } from '@/data/music';
-import { getMusicByMood, getPopularYouTube, searchYouTube } from '@/services/youtube';
+import { getMusicByMood, searchYouTube } from '@/services/youtube';
+import { getDynamicRecommendations } from '@/services/recommendations';
 
 const colors = Colors.dark;
 
@@ -67,14 +67,9 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let mounted = true;
-    void getPopularYouTube()
-      .then((popular) => {
-        if (mounted && popular.length > 0) {
-          const merged = [...popular, ...tracks].filter(
-            (t, i, arr) => arr.findIndex((x) => x.id === t.id) === i
-          );
-          setHomeTracks(merged);
-        }
+    void getDynamicRecommendations()
+      .then((recommended) => {
+        if (mounted && recommended.length > 0) setHomeTracks(recommended);
       })
       .catch(() => {});
     return () => {
@@ -133,9 +128,9 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      const pop = await getPopularYouTube();
-      if (pop.length > 0) {
-        setHomeTracks(pop);
+      const recommended = await getDynamicRecommendations();
+      if (recommended.length > 0) {
+        setHomeTracks(recommended);
       }
     } catch {
     } finally {
@@ -291,10 +286,9 @@ export default function HomeScreen() {
                 <View style={styles.sectionWrap}>
                   <View style={styles.listenAgainHeader}>
                     <View style={styles.userSectionTitleGroup}>
-                      <Image
-                        source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=100&q=80"
-                        style={styles.listenAgainAvatar}
-                      />
+                      <View style={styles.listenAgainAvatar}>
+                        <Text style={styles.listenAgainAvatarText}>GM</Text>
+                      </View>
                       <View>
                         <Text style={styles.userHandle}>N K</Text>
                         <Text style={styles.listenAgainTitle}>LISTEN AGAIN</Text>
@@ -472,6 +466,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listenAgainAvatarText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '900',
   },
   userHandle: {
     color: colors.textSecondary,
