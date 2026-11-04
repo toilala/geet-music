@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   equalizerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     flexDirection: 'row',
     alignItems: 'center',
