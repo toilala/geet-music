@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -18,9 +18,9 @@ type Props = {
 
 // Animated 3-bar Equalizer matching Echo Music's active track badge
 function EqualizerBars() {
-  const bar1 = useRef(new Animated.Value(4)).current;
-  const bar2 = useRef(new Animated.Value(12)).current;
-  const bar3 = useRef(new Animated.Value(8)).current;
+  const [bar1] = useState(() => new Animated.Value(4));
+  const [bar2] = useState(() => new Animated.Value(12));
+  const [bar3] = useState(() => new Animated.Value(8));
 
   useEffect(() => {
     const createAnim = (anim: Animated.Value, min: number, max: number, duration: number) => {

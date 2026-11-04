@@ -60,7 +60,6 @@ export default function HomeScreen() {
   useEffect(() => {
     if (selectedMood.id === 'all') return;
     let mounted = true;
-    setLoadingMood(true);
     void getMusicByMood(selectedMood.query)
       .then((res) => {
         if (mounted) {
@@ -80,6 +79,9 @@ export default function HomeScreen() {
 
   const handleSelectMood = (mood: MoodCategory) => {
     setSelectedMood(mood);
+    if (mood.id !== 'all') {
+      setLoadingMood(true);
+    }
   };
 
   const onRefresh = async () => {
