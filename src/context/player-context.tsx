@@ -259,7 +259,6 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       Vibration.vibrate(10);
     } catch {}
     setPlaying((prev) => !prev);
-    controllerRef.current?.toggle();
   }, []);
 
   const setPlayback = useCallback((nextTime: number, nextDuration: number) => {
