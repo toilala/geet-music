@@ -73,7 +73,7 @@ export function ExpressiveHeader() {
             accessibilityLabel="User profile"
             onPress={() => {
               handleAction();
-              router.push('/(tabs)/library');
+              router.push('/settings');
             }}
             style={({ pressed }) => [styles.avatarBtn, pressed && styles.pressed]}>
             <Text style={styles.avatarText}>GM</Text>

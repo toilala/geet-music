@@ -18,6 +18,11 @@ import { recordSignal, type ListeningSignalType } from '@/services/recommendatio
 import { getRelatedTracks } from '@/services/youtube';
 import { generateEchoBrainQueue } from '@/services/echo-brain';
 import type { ThemeMode } from '@/constants/theme';
+import {
+  DEFAULT_PLAYER_PREFERENCES,
+  readPlayerPreferences,
+  updatePlayerPreferences,
+} from '@/services/player-preferences';
 
 type PlayerController = {
   play: () => void;
@@ -77,17 +82,45 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolumeState] = useState(85);
-  const [themeMode, setThemeMode] = useState<ThemeMode>('material-expressive');
+  const [volume, setVolumeState] = useState(DEFAULT_PLAYER_PREFERENCES.volume);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(DEFAULT_PLAYER_PREFERENCES.themeMode);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>('idle');
   const [playbackSource] = useState<PlaybackSnapshot['source']>('youtube-iframe');
-  const [shuffleEnabled, setShuffleEnabled] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
-  const [isVideoMode, setIsVideoMode] = useState(false);
+  const [shuffleEnabled, setShuffleEnabled] = useState(DEFAULT_PLAYER_PREFERENCES.shuffleEnabled);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>(DEFAULT_PLAYER_PREFERENCES.repeatMode);
+  const [isVideoMode, setIsVideoMode] = useState(DEFAULT_PLAYER_PREFERENCES.isVideoMode);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
   const [isDockCollapsed, setIsDockCollapsed] = useState(false);
 
   const controllerRef = useRef<PlayerController | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void readPlayerPreferences().then((preferences) => {
+      if (!mounted) return;
+      setVolumeState(preferences.volume);
+      setThemeMode(preferences.themeMode);
+      setShuffleEnabled(preferences.shuffleEnabled);
+      setRepeatMode(preferences.repeatMode);
+      setIsVideoMode(preferences.isVideoMode);
+      setPreferencesLoaded(true);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    void updatePlayerPreferences({
+      volume,
+      themeMode,
+      shuffleEnabled,
+      repeatMode,
+      isVideoMode,
+    });
+  }, [volume, themeMode, shuffleEnabled, repeatMode, isVideoMode, preferencesLoaded]);
 
   // Auto-discover and populate queue with fresh recommendations based on listening
   const discoveredArtists = useRef(new Set<string>());

@@ -35,6 +35,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   <Stack.Screen name="recognition" options={{ headerShown: false, presentation: 'modal' }} />
                   <Stack.Screen name="browse" options={{ headerShown: false }} />
+                  <Stack.Screen name="settings" options={{ headerShown: false, presentation: 'modal' }} />
                   <Stack.Screen name="player/[id]" options={{ headerShown: false, presentation: 'modal' }} />
                 </Stack>
               </LibraryProvider>
