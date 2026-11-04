@@ -51,16 +51,11 @@ export default function PlayerScreen() {
     togglePlayback,
     seekTo,
     setPlayback,
-    shuffleEnabled,
-    toggleShuffle,
-    repeatMode,
-    toggleRepeat,
     removeFromQueue,
     clearQueue,
     sleepTimerRemaining,
     volume,
     setVolume,
-    playbackStatus,
   } = usePlayer();
 
   const { isLiked, toggleLike } = useLibrary();
