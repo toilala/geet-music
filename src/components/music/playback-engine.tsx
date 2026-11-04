@@ -21,14 +21,18 @@ export function PlaybackEngine() {
   useEffect(() => {
     selectedAt.current = Date.now();
     recordedTrack.current = null;
-  }, [activeTrack.id]);
+  }, [activeTrack.id, activeTrack.videoId]);
 
   useEffect(() => {
     registerController({
       play: () => setPlaying(true),
       pause: () => setPlaying(false),
       toggle: () => setPlaying((current) => !current),
-      seekTo: (seconds) => playerRef.current?.seekTo(seconds, true),
+      seekTo: (seconds) => {
+        try {
+          playerRef.current?.seekTo(seconds, true);
+        } catch {}
+      },
     });
     return () => registerController(null);
   }, [registerController, setPlaying]);
@@ -41,56 +45,62 @@ export function PlaybackEngine() {
           if (typeof currentTime === 'number' && typeof duration === 'number' && duration > 0) {
             setPlayback(currentTime, duration);
           }
-        });
+        })
+        .catch(() => {});
     }, 500);
     return () => clearInterval(timer);
   }, [playing, setPlayback]);
 
-  const handleStateChange = useCallback((state: PLAYER_STATES) => {
-    if (state === PLAYER_STATES.BUFFERING) setStatus('buffering');
-    if (state === PLAYER_STATES.PLAYING) {
-      setPlaying(true);
-      setStatus('playing');
-      if (recordedTrack.current !== activeTrack.id) {
-        recordedTrack.current = activeTrack.id;
-        recordTrackSignal('play');
+  const handleStateChange = useCallback(
+    (state: PLAYER_STATES) => {
+      if (state === PLAYER_STATES.BUFFERING) setStatus('buffering');
+      if (state === PLAYER_STATES.PLAYING) {
+        setPlaying(true);
+        setStatus('playing');
+        if (recordedTrack.current !== activeTrack.id) {
+          recordedTrack.current = activeTrack.id;
+          recordTrackSignal('play');
+        }
       }
-      if (selectedAt.current > 0) {
-        console.info(`[Geet playback] first play for ${activeTrack.id} after ${Date.now() - selectedAt.current}ms`);
-        selectedAt.current = 0;
+      if (state === PLAYER_STATES.PAUSED) {
+        setPlaying(false);
+        setStatus('paused');
       }
-    }
-    if (state === PLAYER_STATES.PAUSED) {
-      setPlaying(false);
-      setStatus('paused');
-    }
-    if (state === PLAYER_STATES.ENDED) {
-      setPlaying(false);
-      setStatus('ready');
-      recordTrackSignal('complete');
-      playNext();
-    }
-  }, [activeTrack.id, playNext, recordTrackSignal, setPlaying, setStatus]);
+      if (state === PLAYER_STATES.ENDED) {
+        setPlaying(false);
+        setStatus('ready');
+        recordTrackSignal('complete');
+        playNext();
+      }
+    },
+    [activeTrack.id, playNext, recordTrackSignal, setPlaying, setStatus]
+  );
 
   return (
     <YoutubePlayer
       ref={playerRef}
       height={200}
       width={200}
-      key={activeTrack.videoId}
       videoId={activeTrack.videoId}
       play={playing}
       forceAndroidAutoplay
       initialPlayerParams={{ controls: false, rel: false, preventFullScreen: true }}
-      webViewProps={{ allowsInlineMediaPlayback: true, mediaPlaybackRequiresUserAction: false }}
+      webViewProps={{
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserAction: false,
+        androidLayerType: 'hardware',
+      }}
       onChangeState={handleStateChange}
-      onError={() => setStatus('error')}
+      onError={() => {
+        setStatus('error');
+        // Auto-advance if video is unavailable or restricted
+        setTimeout(() => playNext(), 1200);
+      }}
       onReady={() => {
         setStatus('ready');
         void playerRef.current?.getDuration().then((duration) => {
           if (duration > 0) setPlayback(0, duration);
         });
-        console.info(`[Geet playback] player ready for ${activeTrack.id} after ${Date.now() - selectedAt.current}ms`);
       }}
       viewContainerStyle={styles.engine}
       webViewStyle={styles.webView}
@@ -103,9 +113,10 @@ const styles = {
     position: 'absolute' as const,
     width: 200,
     height: 200,
-    opacity: 0.01,
-    left: -210,
-    bottom: -210,
+    opacity: 0.001,
+    left: -250,
+    bottom: -250,
+    pointerEvents: 'none' as const,
   },
-  webView: { opacity: 0.01 },
+  webView: { opacity: 0.001 },
 };

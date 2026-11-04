@@ -1,66 +1,101 @@
-import { SymbolView } from 'expo-symbols';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { StyleSheet, Text, View, Pressable, Vibration } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { usePlayer } from '@/context/player-context';
 
 const colors = Colors.dark;
 
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
 export function ExpressiveHeader() {
-  const greeting = getGreeting();
+  const { themeMode, toggleThemeMode } = usePlayer();
+
+  const handleAction = () => {
+    try {
+      Vibration.vibrate(8);
+    } catch {}
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.brandRow}>
-        <View style={styles.logoBadge}>
-          <SymbolView
-            name={{ ios: 'play.circle.fill', android: 'play_circle_filled', web: 'play_circle_filled' }}
-            tintColor={colors.primary}
-            size={28}
-          />
-          <Text style={styles.brandName}>Geet Music</Text>
+      <View style={styles.headerRow}>
+        {/* Creative stylized brand text - NO icon, creative typographic identity */}
+        <View style={styles.brandWrap}>
+          <View style={styles.brandTextGroup}>
+            <Text style={styles.brandPrimary}>Geet</Text>
+            <Text style={styles.brandSecondary}>Music</Text>
+            <View style={styles.pulseDot} />
+          </View>
+          <Text style={styles.brandTagline}>
+            {themeMode === 'liquid-glass' ? 'Liquid Glass' : 'Expressive'}
+          </Text>
         </View>
 
-        <View style={styles.actions}>
+        {/* Right action icons matching Echo Music: History, Trending, People, Profile Avatar */}
+        <View style={styles.actionRow}>
+          {/* History */}
           <Pressable
-            accessibilityLabel="Cast audio"
-            onPress={() => {}}
+            accessibilityLabel="Listening history"
+            onPress={() => {
+              handleAction();
+              router.push('/library');
+            }}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
             <SymbolView
-              name={{ ios: 'airplayaudio', android: 'cast', web: 'cast' }}
+              name={{ ios: 'clock.arrow.circlepath', android: 'history', web: 'history' }}
+              tintColor={colors.text}
+              size={21}
+            />
+          </Pressable>
+
+          {/* Stats / Trending */}
+          <Pressable
+            accessibilityLabel="Charts and trending"
+            onPress={() => {
+              handleAction();
+              router.push('/explore');
+            }}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+            <SymbolView
+              name={{ ios: 'chart.line.uptrend.xyaxis', android: 'trending_up', web: 'trending_up' }}
               tintColor={colors.text}
               size={20}
             />
           </Pressable>
 
+          {/* People / Community */}
           <Pressable
-            accessibilityLabel="Search music"
-            onPress={() => router.push('/explore')}
+            accessibilityLabel="Friends & shared music"
+            onPress={() => {
+              handleAction();
+              toggleThemeMode();
+            }}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
             <SymbolView
-              name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
+              name={{ ios: 'person.2.fill', android: 'group', web: 'group' }}
               tintColor={colors.text}
               size={20}
             />
           </Pressable>
 
+          {/* User Profile Avatar with active ring */}
           <Pressable
-            accessibilityLabel="Library"
-            onPress={() => router.push('/library')}
+            accessibilityLabel="User profile"
+            onPress={() => {
+              handleAction();
+              router.push('/library');
+            }}
             style={({ pressed }) => [styles.avatarBtn, pressed && styles.pressed]}>
-            <Text style={styles.avatarText}>GM</Text>
+            <Image
+              source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200&q=80"
+              style={styles.avatarImg}
+              contentFit="cover"
+            />
+            <View style={styles.avatarOnlineDot} />
           </Pressable>
         </View>
       </View>
-
-      <Text style={styles.greeting}>{greeting}</Text>
     </View>
   );
 }
@@ -68,26 +103,52 @@ export function ExpressiveHeader() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
-  brandRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  logoBadge: {
+  brandWrap: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+  brandTextGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'baseline',
+    gap: 4,
   },
-  brandName: {
-    color: colors.text,
-    fontSize: 22,
+  brandPrimary: {
+    color: '#FFFFFF',
+    fontSize: 27,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
-  actions: {
+  brandSecondary: {
+    color: colors.primary,
+    fontSize: 27,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+    marginLeft: 2,
+    marginBottom: 4,
+  },
+  brandTagline: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: -2,
+  },
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -96,33 +157,36 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.surfaceHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginLeft: 2,
+    position: 'relative',
+  },
+  avatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: 'rgba(124, 213, 198, 0.4)',
   },
-  avatarText: {
-    color: colors.onPrimaryContainer,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  greeting: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginTop: 14,
+  avatarOnlineDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#3DD598',
+    borderWidth: 2,
+    borderColor: colors.background,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.6,
+    transform: [{ scale: 0.95 }],
   },
 });

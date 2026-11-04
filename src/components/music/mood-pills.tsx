@@ -1,4 +1,3 @@
-import { SymbolView } from 'expo-symbols';
 import { Pressable, ScrollView, StyleSheet, Text, Vibration } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -25,9 +24,7 @@ export function MoodPills({ selectedMoodId, onSelectMood }: Props) {
             onPress={() => {
               try {
                 Vibration.vibrate(8);
-              } catch {
-
-              }
+              } catch {}
               onSelectMood(mood);
             }}
             style={({ pressed }) => [
@@ -35,11 +32,6 @@ export function MoodPills({ selectedMoodId, onSelectMood }: Props) {
               isSelected && styles.pillSelected,
               pressed && styles.pressed,
             ]}>
-            <SymbolView
-              name={mood.icon as any}
-              tintColor={isSelected ? colors.onPrimary : colors.textSecondary}
-              size={15}
-            />
             <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
               {mood.label}
             </Text>
@@ -54,34 +46,32 @@ const styles = StyleSheet.create({
   container: {
     gap: 8,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 15,
+    paddingHorizontal: 18,
     paddingVertical: 9,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceHigh,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: colors.surfaceHighest,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   pillSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#23302B',
+    borderColor: 'rgba(124, 213, 198, 0.45)',
   },
   pillText: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#D4DDD9',
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   pillTextSelected: {
-    color: colors.onPrimary,
+    color: colors.primary,
     fontWeight: '800',
   },
   pressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.97 }],
+    opacity: 0.75,
+    transform: [{ scale: 0.96 }],
   },
 });

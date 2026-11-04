@@ -97,7 +97,7 @@ export default function LibraryScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 140 },
         ]}
         showsVerticalScrollIndicator={false}>
 
@@ -403,7 +403,7 @@ export default function LibraryScreen() {
       </ScrollView>
 
 
-      <View style={[styles.playerDock, { bottom: insets.bottom + 65 }]}>
+      <View style={[styles.playerDock, { bottom: insets.bottom + 72 }]}>
         <MiniPlayer
           track={activeTrack}
           currentTime={currentTime}

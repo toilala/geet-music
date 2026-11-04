@@ -16,12 +16,14 @@ import { tracks, type RepeatMode, type Track } from '@/data/music';
 import type { PlaybackSnapshot, PlaybackStatus } from '@/services/playback';
 import { recordSignal } from '@/services/recommendations';
 import { getRelatedTracks } from '@/services/youtube';
+import type { ThemeMode } from '@/constants/theme';
 
 type PlayerController = {
   play: () => void;
   pause: () => void;
   toggle: () => void;
   seekTo: (seconds: number) => void;
+  setVolume?: (volume: number) => void;
 };
 
 type PlayerContextValue = {
@@ -32,6 +34,11 @@ type PlayerContextValue = {
   duration: number;
   playbackStatus: PlaybackStatus;
   playbackSource: PlaybackSnapshot['source'];
+  volume: number;
+  setVolume: (vol: number) => void;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  toggleThemeMode: () => void;
   setStatus: (status: PlaybackStatus) => void;
   recordTrackSignal: (signal: 'play' | 'complete' | 'skip' | 'like' | 'expose') => void;
   selectTrack: (track: Track, newQueue?: Track[]) => void;
@@ -67,6 +74,8 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolumeState] = useState(85);
+  const [themeMode, setThemeMode] = useState<ThemeMode>('liquid-glass');
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>('idle');
   const [playbackSource] = useState<PlaybackSnapshot['source']>('youtube-iframe');
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
@@ -76,7 +85,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
   const controllerRef = useRef<PlayerController | null>(null);
 
-
+  // Sleep timer countdown
   useEffect(() => {
     if (sleepTimerRemaining === null) return;
 
@@ -92,19 +101,27 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sleepTimerRemaining, setPlaying]);
+  }, [sleepTimerRemaining]);
 
   const setSleepTimer = useCallback((minutes: number | null) => {
     try {
       Vibration.vibrate(10);
-    } catch {
-
-    }
+    } catch {}
     if (minutes === null || minutes <= 0) {
       setSleepTimerRemaining(null);
     } else {
       setSleepTimerRemaining(Math.round(minutes * 60));
     }
+  }, []);
+
+  const toggleThemeMode = useCallback(() => {
+    setThemeMode((curr) => (curr === 'liquid-glass' ? 'material-expressive' : 'liquid-glass'));
+  }, []);
+
+  const setVolume = useCallback((val: number) => {
+    const clamped = Math.max(0, Math.min(100, val));
+    setVolumeState(clamped);
+    controllerRef.current?.setVolume?.(clamped);
   }, []);
 
   const selectTrack = useCallback((track: Track, newQueue?: Track[]) => {
@@ -123,6 +140,10 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   }, []);
 
   const playNext = useCallback(() => {
+    try {
+      Vibration.vibrate(8);
+    } catch {}
+
     if (repeatMode === 'one') {
       controllerRef.current?.seekTo(0);
       setCurrentTime(0);
@@ -132,11 +153,19 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
     setQueue((currentQueue) => {
       if (currentQueue.length === 0) return currentQueue;
-      const currentIndex = currentQueue.findIndex((item) => item.id === activeTrack.id);
+      const currentIndex = currentQueue.findIndex(
+        (item) => item.id === activeTrack.id || item.videoId === activeTrack.videoId
+      );
 
       if (currentIndex === currentQueue.length - 1 && repeatMode === 'off') {
-
-        setPlaying(false);
+        // Wrap around anyway for endless listening like Echo Music
+        const firstTrack = currentQueue[0];
+        if (firstTrack) {
+          setActiveTrack(firstTrack);
+          setCurrentTime(0);
+          setDuration(0);
+          setPlaying(true);
+        }
         return currentQueue;
       }
 
@@ -150,11 +179,14 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       }
       return currentQueue;
     });
-  }, [activeTrack.id, repeatMode]);
+  }, [activeTrack.id, activeTrack.videoId, repeatMode]);
 
   const playPrevious = useCallback(() => {
+    try {
+      Vibration.vibrate(8);
+    } catch {}
 
-    if (currentTime > 4) {
+    if (currentTime > 3) {
       controllerRef.current?.seekTo(0);
       setCurrentTime(0);
       return;
@@ -162,7 +194,9 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
     setQueue((currentQueue) => {
       if (currentQueue.length === 0) return currentQueue;
-      const currentIndex = currentQueue.findIndex((item) => item.id === activeTrack.id);
+      const currentIndex = currentQueue.findIndex(
+        (item) => item.id === activeTrack.id || item.videoId === activeTrack.videoId
+      );
       const prevIndex = (currentIndex - 1 + currentQueue.length) % currentQueue.length;
       const prevTrack = currentQueue[prevIndex];
       if (prevTrack) {
@@ -173,7 +207,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       }
       return currentQueue;
     });
-  }, [activeTrack.id, currentTime]);
+  }, [activeTrack.id, activeTrack.videoId, currentTime]);
 
   const registerController = useCallback((controller: PlayerController | null) => {
     controllerRef.current = controller;
@@ -181,16 +215,17 @@ export function PlayerProvider({ children }: PropsWithChildren) {
 
   const togglePlayback = useCallback(() => {
     try {
-      Vibration.vibrate(8);
-    } catch {
-
-    }
+      Vibration.vibrate(10);
+    } catch {}
+    setPlaying((prev) => !prev);
     controllerRef.current?.toggle();
   }, []);
 
   const setPlayback = useCallback((nextTime: number, nextDuration: number) => {
     setCurrentTime(nextTime);
-    setDuration(nextDuration);
+    if (nextDuration > 0) {
+      setDuration(nextDuration);
+    }
   }, []);
 
   const setStatus = useCallback((status: PlaybackStatus) => setPlaybackStatus(status), []);
@@ -209,13 +244,10 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const toggleShuffle = useCallback(() => {
     try {
       Vibration.vibrate(10);
-    } catch {
-
-    }
+    } catch {}
     setShuffleEnabled((prev) => {
       const nextState = !prev;
       if (nextState) {
-
         setQueue((curr) => {
           const others = curr.filter((t) => t.id !== activeTrack.id);
           for (let i = others.length - 1; i > 0; i--) {
@@ -225,7 +257,6 @@ export function PlayerProvider({ children }: PropsWithChildren) {
           return [activeTrack, ...others];
         });
       } else {
-
         setQueue(originalQueue);
       }
       return nextState;
@@ -235,9 +266,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const toggleRepeat = useCallback(() => {
     try {
       Vibration.vibrate(10);
-    } catch {
-
-    }
+    } catch {}
     setRepeatMode((prev) => {
       if (prev === 'off') return 'all';
       if (prev === 'all') return 'one';
@@ -252,9 +281,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const addToQueue = useCallback((track: Track) => {
     try {
       Vibration.vibrate(8);
-    } catch {
-
-    }
+    } catch {}
     setQueue((curr) => [...curr, track]);
     setOriginalQueue((curr) => [...curr, track]);
   }, []);
@@ -263,9 +290,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     (track: Track) => {
       try {
         Vibration.vibrate(8);
-      } catch {
-
-      }
+      } catch {}
       setQueue((curr) => {
         const index = curr.findIndex((t) => t.id === activeTrack.id);
         const copy = [...curr];
@@ -292,24 +317,21 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     setOriginalQueue([activeTrack]);
   }, [activeTrack]);
 
-  const startRadio = useCallback(
-    async (track: Track) => {
-      try {
-        Vibration.vibrate(15);
-        setActiveTrack(track);
-        setCurrentTime(0);
-        setDuration(0);
-        setPlaying(true);
-        const related = await getRelatedTracks(track);
-        const newStation = [track, ...related];
-        setQueue(newStation);
-        setOriginalQueue(newStation);
-      } catch (e) {
-        console.warn('Radio generator error:', e);
-      }
-    },
-    []
-  );
+  const startRadio = useCallback(async (track: Track) => {
+    try {
+      Vibration.vibrate(15);
+      setActiveTrack(track);
+      setCurrentTime(0);
+      setDuration(0);
+      setPlaying(true);
+      const related = await getRelatedTracks(track);
+      const newStation = [track, ...related];
+      setQueue(newStation);
+      setOriginalQueue(newStation);
+    } catch (e) {
+      console.warn('Radio generator error:', e);
+    }
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -320,6 +342,11 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       duration,
       playbackStatus,
       playbackSource,
+      volume,
+      setVolume,
+      themeMode,
+      setThemeMode,
+      toggleThemeMode,
       setStatus,
       recordTrackSignal,
       selectTrack,
@@ -352,6 +379,9 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       duration,
       playbackStatus,
       playbackSource,
+      volume,
+      setVolume,
+      themeMode,
       setStatus,
       recordTrackSignal,
       selectTrack,
@@ -375,6 +405,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       setSleepTimer,
       isVideoMode,
       toggleVideoMode,
+      toggleThemeMode,
     ]
   );
 

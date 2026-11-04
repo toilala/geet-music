@@ -9,9 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddToPlaylistSheet } from '@/components/music/add-to-playlist-sheet';
 import { AlbumCard } from '@/components/music/album-card';
 import { ExpressiveHeader } from '@/components/music/expressive-header';
+import { HeroCarousel } from '@/components/music/hero-carousel';
 import { MiniPlayer } from '@/components/music/mini-player';
 import { MoodPills } from '@/components/music/mood-pills';
-import { QuickPicksGrid } from '@/components/music/quick-picks-grid';
 import { SongRow } from '@/components/music/song-row';
 import { TrackOptionsSheet } from '@/components/music/track-options-sheet';
 import { Colors } from '@/constants/theme';
@@ -34,13 +34,11 @@ export default function HomeScreen() {
   const [loadingMood, setLoadingMood] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-
   const [optionsTrack, setOptionsTrack] = useState<Track | null>(null);
   const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
 
   const optionsSheetRef = useRef<BottomSheetModal>(null);
   const playlistSheetRef = useRef<BottomSheetModal>(null);
-
 
   useEffect(() => {
     let mounted = true;
@@ -59,10 +57,10 @@ export default function HomeScreen() {
     };
   }, []);
 
-
   useEffect(() => {
     if (selectedMood.id === 'all') return;
     let mounted = true;
+    setLoadingMood(true);
     void getMusicByMood(selectedMood.query)
       .then((res) => {
         if (mounted) {
@@ -82,9 +80,6 @@ export default function HomeScreen() {
 
   const handleSelectMood = (mood: MoodCategory) => {
     setSelectedMood(mood);
-    if (mood.id !== 'all') {
-      setLoadingMood(true);
-    }
   };
 
   const onRefresh = async () => {
@@ -95,7 +90,6 @@ export default function HomeScreen() {
         setHomeTracks(pop);
       }
     } catch {
-
     } finally {
       setRefreshing(false);
     }
@@ -128,27 +122,25 @@ export default function HomeScreen() {
     playlistSheetRef.current?.present();
   };
 
-  const featuredTrack = homeTracks[0] ?? tracks[0];
-  const quickPicks = history.length > 0 ? history.slice(0, 8) : homeTracks.slice(0, 8);
-  const trendingTracks = homeTracks.slice(0, 10);
+  const listenAgainTracks = history.length > 0 ? history.slice(0, 6) : homeTracks.slice(0, 6);
+  const newReleases = homeTracks.slice(6, 14);
 
   return (
     <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 120 },
+          { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 140 },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }>
-
+        {/* Expressive Header without logo icon, creative typography */}
         <ExpressiveHeader />
 
-
+        {/* Mood Filter Pills matching Echo Music */}
         <MoodPills selectedMoodId={selectedMood.id} onSelectMood={handleSelectMood} />
-
 
         {selectedMood.id !== 'all' ? (
           <View style={styles.moodSection}>
@@ -165,7 +157,7 @@ export default function HomeScreen() {
                 <Text style={styles.loaderText}>Finding {selectedMood.label} tracks...</Text>
               </View>
             ) : (
-              <View style={styles.moodList}>
+              <View style={styles.cardContainer}>
                 {moodTracks.map((track) => (
                   <SongRow
                     key={track.id}
@@ -180,105 +172,99 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
+            {/* Hero Carousel with Lyrics & Featured Artwork matching Echo Music */}
+            <HeroCarousel tracks={homeTracks} onPlayTrack={(t) => handlePlayTrack(t, homeTracks)} />
 
-            <View style={styles.heroWrap}>
-              <View style={styles.heroCard}>
-                <Image
-                  source={featuredTrack.artwork}
-                  style={StyleSheet.absoluteFill}
-                  contentFit="cover"
-                  transition={240}
-                />
-                <View style={styles.heroOverlay} />
-                <View style={styles.heroContent}>
-                  <View style={styles.heroBadge}>
-                    <SymbolView
-                      name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
-                      tintColor={colors.onPrimaryContainer}
-                      size={13}
-                    />
-                    <Text style={styles.heroBadgeText}>SPEED DIAL</Text>
+            {/* "N K / LISTEN AGAIN" Section matching Echo Music Screenshots 1 & 2 */}
+            <View style={styles.sectionWrap}>
+              <View style={styles.listenAgainHeader}>
+                <View style={styles.userSectionTitleGroup}>
+                  <Image
+                    source="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=100&q=80"
+                    style={styles.listenAgainAvatar}
+                  />
+                  <View>
+                    <Text style={styles.userHandle}>N K</Text>
+                    <Text style={styles.listenAgainTitle}>LISTEN AGAIN</Text>
                   </View>
-                  <Text numberOfLines={2} style={styles.heroTitle}>
-                    {featuredTrack.title}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.heroSubtitle}>
-                    {featuredTrack.artist}
-                  </Text>
-                  <Pressable
-                    onPress={() => handlePlayTrack(featuredTrack)}
-                    style={({ pressed }) => [styles.heroPlayBtn, pressed && styles.pressed]}>
-                    <SymbolView
-                      name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
-                      tintColor={colors.onPrimary}
-                      size={18}
-                    />
-                    <Text style={styles.heroPlayText}>Listen Now</Text>
-                  </Pressable>
                 </View>
+                <Pressable
+                  onPress={() => handlePlayTrack(listenAgainTracks[0], listenAgainTracks)}
+                  style={({ pressed }) => [styles.playAllBtn, pressed && styles.pressed]}>
+                  <Text style={styles.playAllText}>Play all</Text>
+                </Pressable>
+              </View>
+
+              {/* Grouped rounded container for song rows */}
+              <View style={styles.cardContainer}>
+                {listenAgainTracks.map((track) => (
+                  <SongRow
+                    key={track.id}
+                    track={track}
+                    active={track.id === activeTrack.id && playing}
+                    onPress={() => handlePlayTrack(track, listenAgainTracks)}
+                    onOptionsPress={openOptions}
+                  />
+                ))}
               </View>
             </View>
 
-
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Quick picks</Text>
-                <Text style={styles.sectionSubtitle}>Start radio or jump right back in</Text>
+            {/* "NEW RELEASES" Section matching Echo Music Screenshot 2 */}
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.newReleasesTitle}>NEW RELEASES</Text>
+                <SymbolView
+                  name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
+                  tintColor={colors.textSecondary}
+                  size={18}
+                />
               </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalRow}>
+                {newReleases.map((track) => (
+                  <AlbumCard
+                    key={track.id}
+                    collection={{
+                      id: track.id,
+                      title: track.title,
+                      subtitle: track.artist,
+                      artwork: track.artwork,
+                      accent: colors.primary,
+                      category: 'New Release',
+                    }}
+                    onPress={() => handlePlayTrack(track, newReleases)}
+                  />
+                ))}
+              </ScrollView>
             </View>
-            <QuickPicksGrid
-              tracks={quickPicks}
-              activeTrackId={activeTrack.id}
-              isPlaying={playing}
-              onPlayTrack={(t) => handlePlayTrack(t, quickPicks)}
-              onOptionsPress={openOptions}
-            />
 
-
-            <View style={styles.sectionHeader}>
-              <View>
+            {/* Mixed for You */}
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Mixed for you</Text>
-                <Text style={styles.sectionSubtitle}>Endless personalized stations</Text>
               </View>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalRow}>
-              {collections.map((collection, idx) => (
-                <AlbumCard
-                  key={collection.id}
-                  collection={collection}
-                  onPress={() => handlePlayTrack(homeTracks[idx % homeTracks.length])}
-                />
-              ))}
-            </ScrollView>
-
-
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Trending charts</Text>
-                <Text style={styles.sectionSubtitle}>Most played tracks right now</Text>
-              </View>
-            </View>
-            <View style={styles.chartList}>
-              {trendingTracks.map((track, index) => (
-                <SongRow
-                  key={track.id}
-                  track={track}
-                  rank={index + 1}
-                  active={track.id === activeTrack.id && playing}
-                  onPress={() => handlePlayTrack(track, trendingTracks)}
-                  onOptionsPress={openOptions}
-                />
-              ))}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalRow}>
+                {collections.map((collection, idx) => (
+                  <AlbumCard
+                    key={collection.id}
+                    collection={collection}
+                    onPress={() => handlePlayTrack(homeTracks[idx % homeTracks.length])}
+                  />
+                ))}
+              </ScrollView>
             </View>
           </>
         )}
       </ScrollView>
 
-
-      <View style={[styles.playerDock, { bottom: insets.bottom + 65 }]}>
+      {/* Floating Mini Player positioned above floating bottom tabs */}
+      <View style={[styles.playerDock, { bottom: insets.bottom + 72 }]}>
         <MiniPlayer
           track={activeTrack}
           currentTime={currentTime}
@@ -302,13 +288,11 @@ export default function HomeScreen() {
         />
       </View>
 
-
       <TrackOptionsSheet
         ref={optionsSheetRef}
         track={optionsTrack}
         onOpenPlaylistModal={openAddToPlaylist}
       />
-
 
       <AddToPlaylistSheet ref={playlistSheetRef} track={playlistTrack} />
     </View>
@@ -318,86 +302,77 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0D1110',
   },
   content: {},
-  heroWrap: {
+  sectionWrap: {
+    marginTop: 20,
     paddingHorizontal: 20,
-    marginBottom: 28,
   },
-  heroCard: {
-    height: 240,
-    borderRadius: 32,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceHighest,
-    justifyContent: 'flex-end',
+  listenAgainHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  heroOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(9, 21, 19, 0.65)',
-  },
-  heroContent: {
-    padding: 22,
-    gap: 6,
-  },
-  heroBadge: {
+  userSectionTitleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginBottom: 6,
+    gap: 10,
   },
-  heroBadgeText: {
-    color: colors.onPrimaryContainer,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  heroTitle: {
-    color: '#F4FCF9',
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 28,
-  },
-  heroSubtitle: {
-    color: '#B6D1CB',
-    fontSize: 14,
-  },
-  heroPlayBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  listenAgainAvatar: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    marginTop: 8,
   },
-  heroPlayText: {
-    color: colors.onPrimary,
+  userHandle: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  listenAgainTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  playAllBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  playAllText: {
+    color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  cardContainer: {
+    backgroundColor: '#151A18',
+    borderRadius: 24,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
     marginBottom: 14,
-    marginTop: 6,
+  },
+  newReleasesTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   sectionTitle: {
-    color: colors.text,
-    fontSize: 22,
+    color: '#FFFFFF',
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -407,20 +382,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   horizontalRow: {
-    paddingHorizontal: 20,
     gap: 14,
-    paddingBottom: 28,
-  },
-  chartList: {
-    paddingHorizontal: 12,
-    gap: 2,
+    paddingBottom: 10,
   },
   moodSection: {
+    paddingHorizontal: 20,
     paddingTop: 8,
-  },
-  moodList: {
-    paddingHorizontal: 12,
-    gap: 4,
   },
   loaderBox: {
     alignItems: 'center',
@@ -434,8 +401,9 @@ const styles = StyleSheet.create({
   },
   playerDock: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 14,
+    right: 14,
+    zIndex: 900,
   },
   pressed: {
     opacity: 0.8,

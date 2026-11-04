@@ -27,18 +27,14 @@ import { getPopularYouTube, getSearchSuggestions, searchYouTube } from '@/servic
 const colors = Colors.dark;
 
 const EXPLORE_GENRES = [
-  { id: 'pop', title: 'Pop Hits', query: 'top pop hits music 2026', color: '#176B63', icon: 'sparkles' },
-  { id: 'hiphop', title: 'Hip-Hop & Rap', query: 'hip hop rap bangers', color: '#8F3900', icon: 'flame.fill' },
-  { id: 'rock', title: 'Rock & Alt', query: 'rock alternative classics hits', color: '#3A5260', icon: 'guitars.fill' },
-  { id: 'lofi', title: 'Lofi & Chill', query: 'lofi chill study beats', color: '#3E5C56', icon: 'leaf.fill' },
-  { id: 'edm', title: 'EDM & Dance', query: 'dance electronic festival bangers', color: '#682D78', icon: 'bolt.fill' },
-  { id: 'rnb', title: 'R&B / Soul', query: 'r&b soul smooth music', color: '#7E384D', icon: 'heart.fill' },
-  { id: 'indie', title: 'Indie Vibes', query: 'indie bedroom pop aesthetic', color: '#2C5572', icon: 'music.note' },
-  { id: 'desi', title: 'Bollywood & Desi', query: 'bollywood top romantic hits', color: '#9E3C1B', icon: 'music.quarternote.3' },
-  { id: 'workout', title: 'Workout Power', query: 'gym workout bass motivation music', color: '#9E2424', icon: 'bolt.heart.fill' },
-  { id: 'focus', title: 'Deep Focus', query: 'focus ambient instrumental study', color: '#274457', icon: 'brain.head.profile' },
-  { id: 'acoustic', title: 'Acoustic Morning', query: 'acoustic guitar chill peaceful', color: '#6E5536', icon: 'sun.max.fill' },
-  { id: 'retro', title: '80s & Synthwave', query: 'synthwave retro 80s outrun', color: '#562569', icon: 'moon.stars.fill' },
+  { id: 'pop', title: 'Pop Hits', query: 'top pop hits music', color: '#1A4D46', icon: 'sparkles' },
+  { id: 'hiphop', title: 'Hip-Hop & Rap', query: 'hip hop rap hits', color: '#4E2C17', icon: 'flame.fill' },
+  { id: 'rock', title: 'Rock & Alt', query: 'rock alternative hits', color: '#273842', icon: 'guitars.fill' },
+  { id: 'lofi', title: 'Lofi & Chill', query: 'lofi chill study beats', color: '#233F3A', icon: 'leaf.fill' },
+  { id: 'edm', title: 'EDM & Dance', query: 'electronic dance music', color: '#43224E', icon: 'bolt.fill' },
+  { id: 'rnb', title: 'R&B / Soul', query: 'r&b soul smooth music', color: '#562334', icon: 'heart.fill' },
+  { id: 'indie', title: 'Indie Vibes', query: 'indie bedroom pop', color: '#1E3C4E', icon: 'music.note' },
+  { id: 'workout', title: 'Workout Energy', query: 'workout bass motivation music', color: '#5A1B1B', icon: 'bolt.heart.fill' },
 ];
 
 export default function ExploreScreen() {
@@ -60,7 +56,6 @@ export default function ExploreScreen() {
   const optionsSheetRef = useRef<BottomSheetModal>(null);
   const playlistSheetRef = useRef<BottomSheetModal>(null);
 
-
   useEffect(() => {
     let mounted = true;
     void getPopularYouTube().then((popular) => {
@@ -74,7 +69,6 @@ export default function ExploreScreen() {
       mounted = false;
     };
   }, []);
-
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -149,54 +143,51 @@ export default function ExploreScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
+          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 140 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>SEARCH & EXPLORE</Text>
-          <Text style={styles.title}>Find what you love</Text>
+          <Text style={styles.headerTitle}>Search</Text>
         </View>
 
-
+        {/* Beautiful Material Expressive / Liquid Glass Search Bar */}
         <View style={styles.searchBar}>
           <SymbolView
             name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
-            tintColor={colors.textSecondary}
+            tintColor={colors.primary}
             size={20}
           />
           <TextInput
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={() => executeSearch(query)}
-            placeholder="Songs, artists, podcasts"
-            placeholderTextColor={colors.textSecondary}
+            placeholder="Tracks, artists, albums..."
+            placeholderTextColor="#7C8D89"
             style={styles.searchInput}
             returnKeyType="search"
           />
-          {query.length > 0 && (
-            <Pressable onPress={clearSearch} hitSlop={10} style={styles.clearBtn}>
+          {query.length > 0 ? (
+            <Pressable onPress={clearSearch} hitSlop={12} style={styles.iconBtn}>
               <SymbolView
                 name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }}
-                tintColor={colors.textSecondary}
+                tintColor="#9EAAA6"
+                size={18}
+              />
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => executeSearch('top trending songs')} hitSlop={12} style={styles.iconBtn}>
+              <SymbolView
+                name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
+                tintColor={colors.primary}
                 size={18}
               />
             </Pressable>
           )}
-          <Pressable
-            disabled={!query.trim()}
-            onPress={() => executeSearch(query)}
-            style={({ pressed }) => [styles.submitBtn, !query.trim() && styles.disabled, pressed && styles.pressed]}>
-            <SymbolView
-              name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
-              tintColor={colors.onPrimary}
-              size={16}
-            />
-          </Pressable>
         </View>
 
-
+        {/* Suggestions */}
         {suggestions.length > 0 && (
           <View style={styles.suggestionsBox}>
             {suggestions.map((suggestion) => (
@@ -217,18 +208,21 @@ export default function ExploreScreen() {
           </View>
         )}
 
-
+        {/* Recent Searches */}
         {searchHistory.length > 0 && !activeSearch && (
           <View style={styles.historySection}>
-            <Text style={styles.sectionTitle}>Recent searches</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyChips}>
+            <Text style={styles.sectionTitle}>Recent</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.historyChips}>
               {searchHistory.map((term) => (
                 <View key={term} style={styles.historyChip}>
                   <Pressable onPress={() => executeSearch(term)} style={styles.chipPress}>
                     <SymbolView
-                      name={{ ios: 'clock.arrow.circlepath', android: 'history', web: 'history' }}
+                      name={{ ios: 'clock', android: 'history', web: 'history' }}
                       tintColor={colors.textSecondary}
-                      size={14}
+                      size={13}
                     />
                     <Text style={styles.chipText}>{term}</Text>
                   </Pressable>
@@ -245,11 +239,10 @@ export default function ExploreScreen() {
           </View>
         )}
 
-
+        {/* Browse Categories Grid */}
         {!activeSearch && (
           <View style={styles.genresSection}>
-            <Text style={styles.sectionTitle}>Browse categories</Text>
-            <Text style={styles.sectionSubtitle}>Explore genres and popular moods</Text>
+            <Text style={styles.sectionTitle}>Browse All</Text>
             <View style={styles.genresGrid}>
               {EXPLORE_GENRES.map((genre) => (
                 <Pressable
@@ -265,7 +258,7 @@ export default function ExploreScreen() {
                     <SymbolView
                       name={{ ios: genre.icon as any, android: 'music_note', web: 'music_note' }}
                       tintColor="rgba(255, 255, 255, 0.85)"
-                      size={22}
+                      size={20}
                     />
                   </View>
                 </Pressable>
@@ -274,16 +267,11 @@ export default function ExploreScreen() {
           </View>
         )}
 
-
+        {/* Results Header */}
         <View style={styles.resultsHeader}>
-          <View>
-            <Text style={styles.resultsTitle}>
-              {activeSearch ? `Results for "${activeSearch}"` : 'Trending on YouTube Music'}
-            </Text>
-            <Text style={styles.resultsSubtitle}>
-              {loading ? 'Searching songs...' : `${results.length} songs available`}
-            </Text>
-          </View>
+          <Text style={styles.resultsTitle}>
+            {activeSearch ? `Results for "${activeSearch}"` : 'Top Picks'}
+          </Text>
         </View>
 
         {error ? (
@@ -292,14 +280,13 @@ export default function ExploreScreen() {
           </View>
         ) : null}
 
-
         {loading ? (
           <View style={styles.loaderBox}>
             <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.loaderText}>Finding music for you...</Text>
+            <Text style={styles.loaderText}>Searching...</Text>
           </View>
         ) : (
-          <View style={styles.resultsList}>
+          <View style={styles.resultsCardContainer}>
             {results.map((track) => (
               <SongRow
                 key={track.id}
@@ -313,8 +300,8 @@ export default function ExploreScreen() {
         )}
       </ScrollView>
 
-
-      <View style={[styles.playerDock, { bottom: insets.bottom + 65 }]}>
+      {/* Mini Player */}
+      <View style={[styles.playerDock, { bottom: insets.bottom + 72 }]}>
         <MiniPlayer
           track={activeTrack}
           currentTime={currentTime}
@@ -338,13 +325,11 @@ export default function ExploreScreen() {
         />
       </View>
 
-
       <TrackOptionsSheet
         ref={optionsSheetRef}
         track={optionsTrack}
         onOpenPlaylistModal={openAddToPlaylist}
       />
-
 
       <AddToPlaylistSheet ref={playlistSheetRef} track={playlistTrack} />
     </View>
@@ -354,7 +339,7 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0D1110',
   },
   content: {
     paddingHorizontal: 20,
@@ -362,57 +347,40 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
   },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginTop: 4,
+    letterSpacing: -0.6,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    height: 56,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceHigh,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: colors.surfaceHighest,
-    marginBottom: 16,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 18,
   },
   searchInput: {
     flex: 1,
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: '500',
   },
-  clearBtn: {
+  iconBtn: {
     padding: 6,
   },
-  submitBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
   suggestionsBox: {
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: '#161B19',
     borderRadius: 20,
     padding: 8,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: colors.surfaceHighest,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   suggestionItem: {
     flexDirection: 'row',
@@ -423,7 +391,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   suggestionText: {
-    color: colors.text,
+    color: '#E8F0EC',
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
@@ -432,30 +400,24 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 17,
     fontWeight: '800',
-  },
-  sectionSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   historyChips: {
     gap: 8,
-    paddingVertical: 10,
   },
   historyChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 18,
     paddingLeft: 12,
-    paddingRight: 6,
-    paddingVertical: 7,
+    paddingRight: 8,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: colors.surfaceHighest,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   chipPress: {
     flexDirection: 'row',
@@ -463,7 +425,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chipText: {
-    color: colors.text,
+    color: '#DEE5E2',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -478,18 +440,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginTop: 10,
   },
   genreCard: {
     width: '48%',
-    height: 84,
-    borderRadius: 20,
-    padding: 14,
+    height: 72,
+    borderRadius: 18,
+    padding: 12,
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   genreTitle: {
-    color: '#FFF',
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
   },
   genreIconWrap: {
@@ -500,14 +463,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   resultsTitle: {
-    color: colors.text,
-    fontSize: 20,
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '800',
-  },
-  resultsSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
   },
   errorBanner: {
     backgroundColor: '#30181A',
@@ -519,7 +477,12 @@ const styles = StyleSheet.create({
     color: '#FFB4AB',
     fontSize: 13,
   },
-  resultsList: {
+  resultsCardContainer: {
+    backgroundColor: '#151A18',
+    borderRadius: 24,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     gap: 2,
   },
   loaderBox: {
@@ -533,8 +496,9 @@ const styles = StyleSheet.create({
   },
   playerDock: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 14,
+    right: 14,
+    zIndex: 900,
   },
   pressed: {
     opacity: 0.8,
