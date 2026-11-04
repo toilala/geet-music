@@ -30,8 +30,8 @@ export function AlbumCard({ collection, onPress, width = 150 }: Props) {
         <View style={styles.playBadge}>
           <SymbolView
             name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
-            tintColor={colors.onPrimary}
-            size={18}
+            tintColor="#FFFFFF"
+            size={16}
           />
         </View>
       </View>
@@ -40,7 +40,7 @@ export function AlbumCard({ collection, onPress, width = 150 }: Props) {
         <Text numberOfLines={1} style={styles.title}>
           {collection.title}
         </Text>
-        <Text numberOfLines={2} style={styles.subtitle}>
+        <Text numberOfLines={1} style={styles.subtitle}>
           {collection.subtitle}
         </Text>
       </View>
@@ -57,36 +57,38 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: colors.surfaceHighest,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   artwork: {
     borderRadius: 22,
   },
   playBadge: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 55, 49, 0.88)',
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(20, 30, 27, 0.85)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(120, 214, 200, 0.4)',
+    borderColor: 'rgba(124, 213, 198, 0.35)',
   },
   meta: {
     gap: 2,
     paddingHorizontal: 2,
   },
   title: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   subtitle: {
     color: colors.textSecondary,
     fontSize: 12,
-    lineHeight: 16,
   },
   pressed: {
     opacity: 0.8,
