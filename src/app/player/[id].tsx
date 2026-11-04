@@ -12,6 +12,7 @@ import {
   Text,
   View,
   ScrollView,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -67,7 +68,7 @@ export default function PlayerScreen() {
   // Mode: 'song' (album artwork) or 'lyrics' (full lyrics like Echo Music Screenshot 4)
   const [viewMode, setViewMode] = useState<'song' | 'lyrics'>('song');
   const [lyricsData, setLyricsData] = useState<Awaited<ReturnType<typeof getLyrics>> | null>(null);
-  const lyricsScrollRef = useRef<ScrollView>(null);
+  const lyricsScrollRef = useRef<ScrollViewInstance>(null);
 
   // Sheets
   const queueSheetRef = useRef<BottomSheetModal>(null);
@@ -143,6 +144,16 @@ export default function PlayerScreen() {
       currentMillis >= line.startTime &&
       (idx === arr.length - 1 || currentMillis < arr[idx + 1].startTime)
   );
+
+  // Auto-scroll lyrics smoothly as song progresses
+  useEffect(() => {
+    if (viewMode === 'lyrics' && activeLyricIndex >= 0) {
+      lyricsScrollRef.current?.scrollTo({
+        y: Math.max(0, activeLyricIndex * 64 - 140),
+        animated: true,
+      });
+    }
+  }, [activeLyricIndex, viewMode]);
 
   const handleSeekPress = (locationX: number) => {
     if (duration <= 0) return;
@@ -229,6 +240,7 @@ export default function PlayerScreen() {
           <View style={styles.lyricsContainer}>
             <Text style={styles.lyricsProviderNotice}>Lyrics from YouLyPlus</Text>
             <ScrollView
+              ref={lyricsScrollRef}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.lyricsScrollContent}>
               {lyricsData && lyricsData.lines.length > 0 ? (
@@ -262,10 +274,17 @@ export default function PlayerScreen() {
         )}
       </View>
 
-      {/* Track Metadata and Quick Actions matching Echo Music Screenshot 3 */}
-      <View style={styles.metadataSection}>
+      {/* Track Metadata and Quick Actions matching Echo Music Screenshots 4 & 5 */}
+      <View style={viewMode === 'lyrics' ? styles.metadataSectionLyrics : styles.metadataSection}>
+        {viewMode === 'lyrics' && (
+          <Image
+            source={track.artwork}
+            style={styles.lyricsThumbArtwork}
+            contentFit="cover"
+          />
+        )}
         <View style={styles.titleArtistWrap}>
-          <Text numberOfLines={1} style={styles.trackTitle}>
+          <Text numberOfLines={1} style={viewMode === 'lyrics' ? styles.trackTitleLyrics : styles.trackTitle}>
             {track.title}
           </Text>
           <Text numberOfLines={1} style={styles.trackArtist}>
@@ -274,27 +293,41 @@ export default function PlayerScreen() {
         </View>
 
         <View style={styles.metaActionButtons}>
-          <Pressable
-            onPress={() => optionsSheetRef.current?.present()}
-            style={styles.circleActionBtn}>
-            <SymbolView
-              name={{ ios: 'ellipsis', android: 'more_vert', web: 'more_vert' }}
-              tintColor="#FFFFFF"
-              size={18}
-            />
-          </Pressable>
+          {viewMode === 'lyrics' ? (
+            <Pressable
+              onPress={() => setViewMode('song')}
+              style={styles.circleActionBtn}>
+              <SymbolView
+                name={{ ios: 'arrow.up.left.and.arrow.down.right', android: 'fullscreen', web: 'fullscreen' }}
+                tintColor="#FFFFFF"
+                size={18}
+              />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => optionsSheetRef.current?.present()}
+              style={styles.circleActionBtn}>
+              <SymbolView
+                name={{ ios: 'ellipsis', android: 'more_vert', web: 'more_vert' }}
+                tintColor="#FFFFFF"
+                size={18}
+              />
+            </Pressable>
+          )}
 
           <Pressable
-            onPress={() => toggleLike(track)}
+            onPress={() => (viewMode === 'lyrics' ? optionsSheetRef.current?.present() : toggleLike(track))}
             style={styles.circleActionBtn}>
             <SymbolView
               name={
-                liked
+                viewMode === 'lyrics'
+                  ? { ios: 'ellipsis', android: 'more_vert', web: 'more_vert' }
+                  : liked
                   ? { ios: 'heart.fill', android: 'favorite', web: 'favorite' }
                   : { ios: 'heart', android: 'favorite_border', web: 'favorite_border' }
               }
-              tintColor={liked ? '#FF5370' : '#FFFFFF'}
-              size={20}
+              tintColor={viewMode !== 'lyrics' && liked ? '#FF5370' : '#FFFFFF'}
+              size={18}
             />
           </Pressable>
         </View>
@@ -316,7 +349,7 @@ export default function PlayerScreen() {
         </View>
       </View>
 
-      {/* Large Transport Controls matching Echo Music with working Shuffle and Repeat */}
+      {/* Transport Controls matching Echo Music Screenshots 4 & 5 */}
       <View style={styles.controlsRow}>
         <Pressable
           onPress={toggleShuffle}
@@ -338,22 +371,22 @@ export default function PlayerScreen() {
           <SymbolView
             name={{ ios: 'backward.fill', android: 'fast_rewind', web: 'fast_rewind' }}
             tintColor="#FFFFFF"
-            size={30}
+            size={36}
           />
         </Pressable>
 
         <Pressable
           onPress={togglePlayback}
           accessibilityLabel={playing ? 'Pause' : 'Play'}
-          style={({ pressed }) => [styles.playPauseFab, pressed && styles.pressed]}>
+          style={styles.centerPlayBtn}>
           <SymbolView
             name={
               playing
                 ? { ios: 'pause.fill', android: 'pause', web: 'pause' }
                 : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }
             }
-            tintColor="#0B0F0E"
-            size={36}
+            tintColor="#FFFFFF"
+            size={46}
           />
         </Pressable>
 
@@ -365,7 +398,7 @@ export default function PlayerScreen() {
           <SymbolView
             name={{ ios: 'forward.fill', android: 'fast_forward', web: 'fast_forward' }}
             tintColor="#FFFFFF"
-            size={30}
+            size={36}
           />
         </Pressable>
 
@@ -405,7 +438,7 @@ export default function PlayerScreen() {
         />
       </View>
 
-      {/* Bottom Action Bar: Queue, Output/Timer Pill, Lyrics toggle */}
+      {/* Bottom Action Bar: Queue, Output/Timer Pill, Lyrics toggle matching Screenshots 4 & 5 */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
         <Pressable
           onPress={() => queueSheetRef.current?.present()}
@@ -414,11 +447,21 @@ export default function PlayerScreen() {
           <SymbolView
             name={{ ios: 'list.bullet', android: 'queue_music', web: 'queue_music' }}
             tintColor="#FFFFFF"
-            size={20}
+            size={22}
           />
         </Pressable>
 
         <View style={styles.centerPillGroup}>
+          <Pressable
+            onPress={() => optionsSheetRef.current?.present()}
+            style={styles.pillActionBtn}>
+            <SymbolView
+              name={{ ios: 'hifispeaker.fill', android: 'speaker_group', web: 'speaker_group' }}
+              tintColor="#FFFFFF"
+              size={18}
+            />
+          </Pressable>
+          <View style={styles.pillDivider} />
           <Pressable
             onPress={() => sleepSheetRef.current?.present()}
             style={styles.pillActionBtn}>
@@ -442,7 +485,7 @@ export default function PlayerScreen() {
           <SymbolView
             name={{ ios: 'quote.bubble', android: 'chat_bubble', web: 'chat_bubble' }}
             tintColor={viewMode === 'lyrics' ? colors.primary : '#FFFFFF'}
-            size={20}
+            size={22}
           />
         </Pressable>
       </View>
@@ -688,24 +731,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   progressTrack: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     position: 'relative',
     justifyContent: 'center',
   },
   progressFill: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#C59A7E',
   },
   progressThumb: {
     position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#C59A7E',
-    marginLeft: -7,
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    backgroundColor: '#D4A58E',
+    marginLeft: -2,
+    top: -6,
   },
   timeLabelRow: {
     flexDirection: 'row',
@@ -720,11 +764,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 36,
+    gap: 28,
     marginBottom: 20,
   },
   controlIconBtn: {
     padding: 10,
+  },
+  centerPlayBtn: {
+    width: 68,
+    height: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sideControlBtn: {
     padding: 10,
@@ -742,18 +792,29 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.primary,
   },
-  playPauseFab: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FFFFFF',
+  metadataSectionLyrics: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginBottom: 16,
+    gap: 12,
+  },
+  lyricsThumbArtwork: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+  },
+  trackTitleLyrics: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  pillDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   volumeRow: {
     flexDirection: 'row',
