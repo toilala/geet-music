@@ -120,12 +120,10 @@ export default function ExploreScreen() {
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
-      setResults([]);
-      setLoading(false);
       return;
     }
-    setLoading(true);
     const timer = setTimeout(() => {
+      setLoading(true);
       void searchYouTube(trimmed).then((res) => {
         setResults(res);
         setLoading(false);

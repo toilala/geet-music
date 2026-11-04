@@ -60,7 +60,7 @@ export default function SettingsScreen() {
 
         <Text style={styles.eyebrow}>PLAYER</Text>
         <View style={styles.group}>
-          <SettingRow label="Hide player thumbnail" description="Keep the mini player compact and text-first." value={preferences?.hidePlayerThumbnail ?? false} onChange={(value) => update({ hidePlayerThumbnail: value })} />
+          <SettingRow label="Hide player thumbnail" description="Keep the mini player compact and text-first." value={preferences?.hidePlayerThumbnail ?? false} onChange={(value) => { player.setHidePlayerThumbnail(value); update({ hidePlayerThumbnail: value }); }} />
           <SettingRow label="Smooth lyric animation" description="Use synchronized, animated lyric transitions in the player." value={preferences?.lyricAnimation === 'smooth'} onChange={(value) => update({ lyricAnimation: value ? 'smooth' : 'minimal' })} />
         </View>
 

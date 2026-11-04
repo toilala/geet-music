@@ -69,6 +69,8 @@ type PlayerContextValue = {
   setSleepTimer: (minutes: number | null) => void;
   isVideoMode: boolean;
   toggleVideoMode: () => void;
+  hidePlayerThumbnail: boolean;
+  setHidePlayerThumbnail: (hidden: boolean) => void;
   isDockCollapsed: boolean;
   setIsDockCollapsed: (collapsed: boolean) => void;
 };
@@ -89,6 +91,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const [shuffleEnabled, setShuffleEnabled] = useState(DEFAULT_PLAYER_PREFERENCES.shuffleEnabled);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>(DEFAULT_PLAYER_PREFERENCES.repeatMode);
   const [isVideoMode, setIsVideoMode] = useState(DEFAULT_PLAYER_PREFERENCES.isVideoMode);
+  const [hidePlayerThumbnail, setHidePlayerThumbnail] = useState(DEFAULT_PLAYER_PREFERENCES.hidePlayerThumbnail);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
   const [isDockCollapsed, setIsDockCollapsed] = useState(false);
@@ -104,6 +107,7 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       setShuffleEnabled(preferences.shuffleEnabled);
       setRepeatMode(preferences.repeatMode);
       setIsVideoMode(preferences.isVideoMode);
+      setHidePlayerThumbnail(preferences.hidePlayerThumbnail);
       setPreferencesLoaded(true);
     });
     return () => {
@@ -119,8 +123,9 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       shuffleEnabled,
       repeatMode,
       isVideoMode,
+      hidePlayerThumbnail,
     });
-  }, [volume, themeMode, shuffleEnabled, repeatMode, isVideoMode, preferencesLoaded]);
+  }, [volume, themeMode, shuffleEnabled, repeatMode, isVideoMode, hidePlayerThumbnail, preferencesLoaded]);
 
   // Auto-discover and populate queue with fresh recommendations based on listening
   const discoveredArtists = useRef(new Set<string>());
@@ -448,6 +453,8 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       setSleepTimer,
       isVideoMode,
       toggleVideoMode,
+      hidePlayerThumbnail,
+      setHidePlayerThumbnail,
       isDockCollapsed,
       setIsDockCollapsed,
     }),
@@ -485,6 +492,8 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       setSleepTimer,
       isVideoMode,
       toggleVideoMode,
+      hidePlayerThumbnail,
+      setHidePlayerThumbnail,
       toggleThemeMode,
       isDockCollapsed,
     ]

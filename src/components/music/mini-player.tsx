@@ -28,7 +28,7 @@ export function MiniPlayer({
   onNext,
   onOpen,
 }: Props) {
-  const { isDockCollapsed } = usePlayer();
+  const { isDockCollapsed, hidePlayerThumbnail } = usePlayer();
   const [visibility] = useState(() => new Animated.Value(isDockCollapsed ? 0 : 1));
 
   useEffect(() => {
@@ -73,12 +73,14 @@ export function MiniPlayer({
         style={({ pressed }) => [styles.wrapper, pressed && styles.pressed]}>
         <View style={styles.container}>
         {/* Rounded Artwork */}
-        <Image
-          source={track.artwork}
-          style={styles.artwork}
-          contentFit="cover"
-          transition={160}
-        />
+        {!hidePlayerThumbnail && (
+          <Image
+            source={track.artwork}
+            style={styles.artwork}
+            contentFit="cover"
+            transition={160}
+          />
+        )}
 
         {/* Title & Artist */}
         <View style={styles.meta}>

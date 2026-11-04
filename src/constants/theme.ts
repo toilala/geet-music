@@ -1,4 +1,4 @@
-import { Platform, StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 
 export type ThemeMode = 'material-expressive' | 'liquid-glass';
 
