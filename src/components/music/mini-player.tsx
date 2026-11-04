@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
@@ -6,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Colors } from '@/constants/theme';
 import { usePlayer } from '@/context/player-context';
 import type { Track } from '@/data/music';
+import { TrackArtwork } from '@/components/music/track-artwork';
 
 const colors = Colors.dark;
 
@@ -74,8 +74,8 @@ export function MiniPlayer({
         <View style={styles.container}>
         {/* Rounded Artwork */}
         {!hidePlayerThumbnail && (
-          <Image
-            source={track.artwork}
+          <TrackArtwork
+            track={track}
             style={styles.artwork}
             contentFit="cover"
             transition={160}

@@ -104,10 +104,13 @@ export default function HomeScreen() {
 
     const timer = setTimeout(() => {
       setIsSearching(true);
-      void searchYouTube(trimmed).then((res) => {
-        setSearchResults(res);
-        setIsSearching(false);
-      });
+      void searchYouTube(trimmed)
+        .then((res) => setSearchResults(res))
+        .catch((error) => {
+          setSearchResults([]);
+          console.warn('Home search failed:', error);
+        })
+        .finally(() => setIsSearching(false));
     }, 350);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -232,7 +235,9 @@ export default function HomeScreen() {
               </View>
             ) : (
               <View style={styles.cardContainer}>
-                {searchResults.map((track) => (
+                {searchResults.length === 0 ? (
+                  <Text style={styles.loaderText}>No tracks found. Try another search.</Text>
+                ) : searchResults.map((track) => (
                   <SongRow
                     key={track.id}
                     track={track}

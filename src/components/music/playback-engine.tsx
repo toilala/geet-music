@@ -1,31 +1,74 @@
 import YoutubePlayer, { PLAYER_STATES, type YoutubeIframeRef } from 'react-native-youtube-iframe';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { usePlayer } from '@/context/player-context';
+import { searchYouTube } from '@/services/youtube';
 
 export function PlaybackEngine() {
   const playerRef = useRef<YoutubeIframeRef | null>(null);
   const recordedTrack = useRef<string | null>(null);
   const retryCount = useRef(0);
+  const sourceRecoveryAttempted = useRef<string | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resolvedCatalogTrack = useRef<string | null>(null);
+  const [resolvingCatalogTrack, setResolvingCatalogTrack] = useState(false);
+  const [readyVideoId, setReadyVideoId] = useState<string | null>(null);
+  const playIntent = useRef(false);
   const {
     activeTrack,
     playing,
+    volume,
     setPlayback,
     setPlaying,
     setStatus,
     recordTrackSignal,
     registerController,
     playNext,
+    selectTrack,
+    queue,
   } = usePlayer();
+
+  useEffect(() => {
+    playIntent.current = playing;
+  }, [playing]);
+
+  useEffect(() => {
+    if (activeTrack.id === activeTrack.videoId || resolvedCatalogTrack.current === activeTrack.id) return;
+    let mounted = true;
+    resolvedCatalogTrack.current = activeTrack.id;
+    setResolvingCatalogTrack(true);
+    setStatus('loading');
+    void searchYouTube(`"${activeTrack.title}" ${activeTrack.artist} official audio song`)
+      .then((results) => {
+        if (!mounted) return;
+        const replacement = results[0];
+        if (replacement && replacement.videoId !== activeTrack.videoId) {
+          selectTrack(replacement, [replacement, ...queue.filter((item) => item.id !== activeTrack.id && item.id !== replacement.id)]);
+        } else if (!replacement) {
+          setPlaying(false);
+          setStatus('error');
+        }
+      })
+      .catch((error) => {
+        if (mounted) {
+          setPlaying(false);
+          setStatus('error');
+        }
+        console.warn('Unable to resolve catalog track:', error);
+      })
+      .finally(() => {
+        if (mounted) setResolvingCatalogTrack(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [activeTrack.artist, activeTrack.id, activeTrack.title, activeTrack.videoId, queue, selectTrack, setPlaying, setStatus]);
 
   useEffect(() => {
     recordedTrack.current = null;
     retryCount.current = 0;
-    if (retryTimer.current) {
-      clearTimeout(retryTimer.current);
-      retryTimer.current = null;
-    }
+    sourceRecoveryAttempted.current = null;
+    if (retryTimer.current) clearTimeout(retryTimer.current);
     return () => {
       if (retryTimer.current) clearTimeout(retryTimer.current);
     };
@@ -38,9 +81,12 @@ export function PlaybackEngine() {
       toggle: () => setPlaying((current) => !current),
       seekTo: (seconds) => {
         try {
-          playerRef.current?.seekTo(seconds, true);
-        } catch {}
+          playerRef.current?.seekTo(Math.max(0, seconds), true);
+        } catch (error) {
+          console.warn('Unable to seek playback:', error);
+        }
       },
+      setVolume: () => undefined,
     });
     return () => registerController(null);
   }, [registerController, setPlaying]);
@@ -54,7 +100,7 @@ export function PlaybackEngine() {
             setPlayback(currentTime, duration);
           }
         })
-        .catch(() => {});
+        .catch((error) => console.warn('Unable to read playback position:', error));
     }, 500);
     return () => clearInterval(timer);
   }, [playing, setPlayback]);
@@ -62,6 +108,9 @@ export function PlaybackEngine() {
   const handleStateChange = useCallback(
     (state: PLAYER_STATES) => {
       if (state === PLAYER_STATES.BUFFERING) setStatus('buffering');
+      if (state === PLAYER_STATES.UNSTARTED || state === PLAYER_STATES.VIDEO_CUED) {
+        setStatus('ready');
+      }
       if (state === PLAYER_STATES.PLAYING) {
         setPlaying(true);
         setStatus('playing');
@@ -71,6 +120,7 @@ export function PlaybackEngine() {
         }
       }
       if (state === PLAYER_STATES.PAUSED) {
+        if (readyVideoId !== activeTrack.videoId) return;
         setPlaying(false);
         setStatus('paused');
       }
@@ -81,8 +131,30 @@ export function PlaybackEngine() {
         playNext();
       }
     },
-    [activeTrack.id, playNext, recordTrackSignal, setPlaying, setStatus]
+    [activeTrack.id, activeTrack.videoId, playNext, readyVideoId, recordTrackSignal, setPlaying, setStatus]
   );
+
+  const recoverSource = useCallback(() => {
+    if (sourceRecoveryAttempted.current === activeTrack.id) return;
+    sourceRecoveryAttempted.current = activeTrack.id;
+    void searchYouTube(`"${activeTrack.title}" ${activeTrack.artist} official audio song`)
+      .then((results) => {
+        const replacement = results.find((candidate) => candidate.videoId !== activeTrack.videoId);
+        if (replacement) {
+          selectTrack(replacement, [replacement, ...queue.filter((item) => item.id !== replacement.id)]);
+          return;
+        }
+        setPlaying(false);
+        setStatus('error');
+      })
+      .catch((error) => {
+        setPlaying(false);
+        setStatus('error');
+        console.warn('Playback source recovery failed:', error);
+      });
+  }, [activeTrack.artist, activeTrack.id, activeTrack.title, activeTrack.videoId, queue, selectTrack, setPlaying, setStatus]);
+
+  if (resolvingCatalogTrack) return null;
 
   return (
     <YoutubePlayer
@@ -91,7 +163,9 @@ export function PlaybackEngine() {
       height={200}
       width={200}
       videoId={activeTrack.videoId}
-      play={playing}
+      play={playing && readyVideoId === activeTrack.videoId}
+      volume={volume}
+      mute={volume === 0}
       forceAndroidAutoplay
       initialPlayerParams={{ controls: false, rel: false, preventFullScreen: true }}
       webViewProps={{
@@ -107,15 +181,16 @@ export function PlaybackEngine() {
           retryTimer.current = setTimeout(() => {
             retryTimer.current = null;
             setPlaying(true);
-          }, 500);
+          }, 700);
           return;
         }
-        setPlaying(false);
-        setStatus('error');
-        console.warn('Playback error for track:', activeTrack.title, error);
+        console.warn('Playback source failed:', activeTrack.title, error);
+        recoverSource();
       }}
       onReady={() => {
+        setReadyVideoId(activeTrack.videoId);
         setStatus('ready');
+        if (playIntent.current) setPlaying(true);
         void playerRef.current?.getDuration().then((duration) => {
           if (duration > 0) setPlayback(0, duration);
         });
@@ -131,10 +206,10 @@ const styles = {
     position: 'absolute' as const,
     width: 200,
     height: 200,
-    opacity: 0.001,
-    left: -250,
-    bottom: -250,
+    opacity: 0.01,
+    left: 0,
+    top: 0,
     pointerEvents: 'none' as const,
   },
-  webView: { opacity: 0.001 },
+  webView: { opacity: 0.01 },
 };

@@ -1,5 +1,4 @@
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -24,6 +23,7 @@ import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
 import { tracks } from '@/data/music';
 import { getLyrics, lyricText } from '@/services/lyrics';
+import { TrackArtwork } from '@/components/music/track-artwork';
 
 const colors = Colors.dark;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,6 +49,7 @@ export default function PlayerScreen() {
     playNext,
     playPrevious,
     playing,
+    playbackStatus,
     togglePlayback,
     seekTo,
     setPlayback,
@@ -68,6 +69,7 @@ export default function PlayerScreen() {
   // Mode: 'song' (album artwork) or 'lyrics' (full lyrics like Echo Music Screenshot 4)
   const [viewMode, setViewMode] = useState<'song' | 'lyrics'>('song');
   const [lyricsData, setLyricsData] = useState<Awaited<ReturnType<typeof getLyrics>> | null>(null);
+  const [lyricsForTrack, setLyricsForTrack] = useState<string | null>(null);
   const lyricsScrollRef = useRef<ScrollViewInstance>(null);
 
   // Sheets
@@ -107,13 +109,26 @@ export default function PlayerScreen() {
   // Load lyrics when track changes or lyrics view is toggled
   useEffect(() => {
     let mounted = true;
-    void getLyrics(activeTrack.title, activeTrack.artist, duration || 210).then((data) => {
-      if (mounted) setLyricsData(data);
+    void getLyrics(activeTrack.title, activeTrack.artist, activeTrack.durationSeconds || 210).then((data) => {
+      if (mounted) {
+        setLyricsForTrack(activeTrack.id);
+        setLyricsData(data);
+      }
+    }).catch((error) => {
+      if (mounted) {
+        setLyricsForTrack(activeTrack.id);
+        setLyricsData({
+          lines: [],
+          synced: false,
+          wordTimed: false,
+          source: error instanceof Error ? `Lyrics error: ${error.message}` : 'Lyrics unavailable',
+        });
+      }
     });
     return () => {
       mounted = false;
     };
-  }, [activeTrack.id, activeTrack.title, activeTrack.artist, duration]);
+  }, [activeTrack.id, activeTrack.title, activeTrack.artist, activeTrack.durationSeconds]);
 
   // Gentle pulse animation for artwork while playing
   useEffect(() => {
@@ -208,6 +223,17 @@ export default function PlayerScreen() {
           </Pressable>
         </View>
 
+        {playbackStatus === 'error' && (
+          <View style={styles.playbackError}>
+            <SymbolView
+              name={{ ios: 'exclamationmark.triangle.fill', android: 'warning', web: 'warning' }}
+              tintColor={colors.accentAmber}
+              size={16}
+            />
+            <Text style={styles.playbackErrorText}>This source could not be played. Try another result.</Text>
+          </View>
+        )}
+
         <Pressable
           onPress={() => optionsSheetRef.current?.present()}
           hitSlop={14}
@@ -229,8 +255,8 @@ export default function PlayerScreen() {
               styles.artworkWrap,
               { width: ARTWORK_SIZE, height: ARTWORK_SIZE, transform: [{ scale: artworkScale }] },
             ]}>
-            <Image
-              source={track.artwork}
+            <TrackArtwork
+              track={track}
               style={[styles.artwork, { width: ARTWORK_SIZE, height: ARTWORK_SIZE }]}
               contentFit="cover"
               transition={200}
@@ -245,7 +271,7 @@ export default function PlayerScreen() {
               ref={lyricsScrollRef}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.lyricsScrollContent}>
-              {lyricsData && lyricsData.lines.length > 0 ? (
+              {lyricsForTrack === activeTrack.id && lyricsData && lyricsData.lines.length > 0 ? (
                 lyricsData.lines.map((line, idx) => {
                   const isActive = idx === activeLyricIndex;
                   return (
@@ -259,11 +285,15 @@ export default function PlayerScreen() {
                     </Pressable>
                   );
                 })
-              ) : lyricsData ? (
+              ) : lyricsForTrack === activeTrack.id && lyricsData ? (
                 <View style={styles.fallbackLyricsBox}>
                   <Text style={styles.fallbackLyricsTitle}>{track.title}</Text>
                   <Text style={styles.fallbackLyricsArtist}>{track.artist}</Text>
-                  <Text style={styles.fallbackLyricsText}>Lyrics are not available for this track yet.</Text>
+                  <Text style={styles.fallbackLyricsText}>
+                    {lyricsData.source === 'No lyrics provider found'
+                      ? 'Lyrics are not available for this track yet.'
+                      : lyricsData.source}
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.fallbackLyricsBox}>
@@ -278,8 +308,8 @@ export default function PlayerScreen() {
       {/* Track Metadata and Quick Actions matching Echo Music Screenshots 4 & 5 */}
       <View style={viewMode === 'lyrics' ? styles.metadataSectionLyrics : styles.metadataSection}>
         {viewMode === 'lyrics' && (
-          <Image
-            source={track.artwork}
+          <TrackArtwork
+            track={track}
             style={styles.lyricsThumbArtwork}
             contentFit="cover"
           />
@@ -519,7 +549,7 @@ export default function PlayerScreen() {
                     queueSheetRef.current?.dismiss();
                   }}
                   style={[styles.queueRow, isCurrent && styles.queueRowActive]}>
-                  <Image source={item.artwork} style={styles.queueArtwork} />
+                  <TrackArtwork track={item} style={styles.queueArtwork} />
                   <View style={styles.queueMeta}>
                     <Text numberOfLines={1} style={[styles.queueSongTitle, isCurrent && styles.activeSong]}>
                       {item.title}
@@ -689,6 +719,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '700',
     marginTop: 16,
+  },
+  playbackError: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: 'rgba(245, 169, 82, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 169, 82, 0.24)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  playbackErrorText: {
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: 12,
   },
   metadataSection: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import type { Track } from '@/data/music';
+import type { Track } from '@/types/music';
 
 export type PlaybackStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'buffering' | 'error';
 
@@ -15,6 +15,8 @@ export type PlaybackSnapshot = {
 export type PlaybackAdapter = {
   play: () => void;
   pause: () => void;
+  toggle: () => void;
   seek: (seconds: number) => void;
+  setVolume: (volume: number) => void;
   load: (track: Track) => void;
 };

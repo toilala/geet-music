@@ -1,9 +1,10 @@
-import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import type { Track } from '@/data/music';
+import { TrackArtwork } from '@/components/music/track-artwork';
+import { EchoSurface } from '@/components/ui/echo-surface';
 
 const colors = Colors.dark;
 
@@ -24,11 +25,11 @@ export function QuickPicksGrid({ tracks, activeTrackId, isPlaying, onPlayTrack, 
       {displayTracks.map((track) => {
         const isActive = track.id === activeTrackId && isPlaying;
         return (
-          <Pressable
-            key={track.id}
-            onPress={() => onPlayTrack(track)}
-            style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
-            <Image source={track.artwork} style={styles.artwork} contentFit="cover" transition={160} />
+          <EchoSurface key={track.id} style={styles.item}>
+            <Pressable
+              onPress={() => onPlayTrack(track)}
+              style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+            <TrackArtwork track={track} style={styles.artwork} contentFit="cover" transition={160} />
             <View style={styles.meta}>
               <Text numberOfLines={1} style={[styles.title, isActive && styles.activeTitle]}>
                 {track.title}
@@ -61,7 +62,8 @@ export function QuickPicksGrid({ tracks, activeTrackId, isPlaying, onPlayTrack, 
                 size={18}
               />
             </Pressable>
-          </Pressable>
+            </Pressable>
+          </EchoSurface>
         );
       })}
     </View>
@@ -75,12 +77,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   item: {
+    marginBottom: 6,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 8,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceHigh,
   },
   artwork: {
     width: 52,

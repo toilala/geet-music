@@ -33,6 +33,18 @@ type PopularResponse = {
   error?: { message?: string };
 };
 
+type InnertubeSearchResponse = {
+  contents?: unknown;
+};
+
+type InnertubeVideo = {
+  videoId?: string;
+  title?: { runs?: { text?: string }[] };
+  ownerText?: { runs?: { text?: string }[] };
+  thumbnail?: { thumbnails?: { url?: string }[] };
+  lengthText?: { simpleText?: string };
+};
+
 const cache = new Map<string, { expires: number; tracks: Track[] }>();
 const CACHE_TTL = 15 * 60 * 1000;
 
@@ -70,7 +82,7 @@ export async function searchYouTube(query: string): Promise<Track[]> {
           if (!videoId) return [];
           return [toTrack(videoId, item.snippet)];
         });
-        const result = await filterFullLengthTracks(candidates);
+        const result = rankMusicTracks(await filterFullLengthTracks(candidates));
 
         if (result.length > 0) {
           cache.set(cacheKey, { expires: Date.now() + CACHE_TTL, tracks: result });
@@ -80,7 +92,13 @@ export async function searchYouTube(query: string): Promise<Track[]> {
     } catch {}
   }
 
-  // Fallback to Piped search for unlimited video discovery
+  const innertubeResult = await searchYouTubeInnertube(trimmed);
+  if (innertubeResult.length > 0) {
+    cache.set(cacheKey, { expires: Date.now() + CACHE_TTL, tracks: innertubeResult });
+    return innertubeResult;
+  }
+
+  // Legacy fallback for instances that still expose the Piped API.
   try {
     const pipedUrl = `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(trimmed)}&filter=videos`;
     const pipedResponse = await fetchWithTimeout(pipedUrl, 4000);
@@ -90,7 +108,7 @@ export async function searchYouTube(query: string): Promise<Track[]> {
       };
       if (pipedData.items && pipedData.items.length > 0) {
         const pipedTracks: Track[] = pipedData.items
-          .filter((item) => (item.duration ?? 0) >= 60 && !isShortFormTitle(item.title ?? ''))
+          .filter((item) => (item.duration ?? 0) >= 90 && isMusicLikeTitle(item.title ?? ''))
           .map((item) => {
           const videoId = extractVideoId(item.url);
           const durSec = item.duration ?? 220;
@@ -121,7 +139,64 @@ export async function searchYouTube(query: string): Promise<Track[]> {
       (t.album && t.album.toLowerCase().includes(trimmed))
   );
 
-  return localMatches.length > 0 ? localMatches : tracks;
+  return localMatches;
+}
+
+async function searchYouTubeInnertube(query: string): Promise<Track[]> {
+  try {
+    const response = await fetchWithTimeout(
+      'https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+      9000,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: 'WEB',
+              clientVersion: '2.20260301.01.00',
+              hl: 'en',
+              gl: 'US',
+            },
+          },
+          query,
+        }),
+      }
+    );
+    if (!response.ok) return [];
+    const data = (await response.json()) as InnertubeSearchResponse;
+    return rankMusicTracks(collectVideoRenderers(data.contents).flatMap((video) => {
+      if (!video?.videoId) return [];
+      const title = video.title?.runs?.map((run) => run.text ?? '').join('') ?? 'Untitled track';
+      const artist = video.ownerText?.runs?.map((run) => run.text ?? '').join('') ?? 'Geet Artist';
+      const duration = video.lengthText?.simpleText ?? '4:15';
+      const durationSeconds = parseDisplayDuration(duration);
+      if (durationSeconds < 90 || !isMusicLikeTitle(title)) return [];
+      return [{
+        id: video.videoId,
+        videoId: video.videoId,
+        title: cleanTrackTitle(title, artist).title,
+        artist: artist.replace(' - Topic', ''),
+        artwork:
+          video.thumbnail?.thumbnails?.[video.thumbnail.thumbnails.length - 1]?.url ??
+          `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`,
+        duration,
+        durationSeconds,
+      }];
+    }));
+  } catch (error) {
+    console.warn('YouTube search failed:', error);
+    return [];
+  }
+
+  function collectVideoRenderers(value: unknown, result: InnertubeVideo[] = []): InnertubeVideo[] {
+    if (!value || typeof value !== 'object') return result;
+    if ('videoRenderer' in value && value.videoRenderer && typeof value.videoRenderer === 'object') {
+      result.push(value.videoRenderer as InnertubeVideo);
+    }
+    for (const child of Object.values(value)) collectVideoRenderers(child, result);
+    return result;
+  }
 }
 
 async function filterFullLengthTracks(candidates: Track[]): Promise<Track[]> {
@@ -143,9 +218,9 @@ async function filterFullLengthTracks(candidates: Track[]): Promise<Track[]> {
         .filter((item): item is { id: string; contentDetails?: { duration?: string } } => Boolean(item.id))
         .map((item) => [item.id, parseIsoDuration(item.contentDetails?.duration)])
     );
-    return filtered
+    return rankMusicTracks(filtered
       .map((track) => ({ ...track, durationSeconds: durations.get(track.videoId) ?? track.durationSeconds }))
-      .filter((track) => (track.durationSeconds ?? 0) >= 60);
+      .filter((track) => (track.durationSeconds ?? 0) >= 90));
   } catch {
     return filtered;
   }
@@ -160,6 +235,26 @@ function parseIsoDuration(value?: string): number {
 
 function isShortFormTitle(title: string): boolean {
   return /(^|\s)#?shorts?\b|(^|\s)short\s*video\b/i.test(title);
+}
+
+function isMusicLikeTitle(title: string): boolean {
+  if (isShortFormTitle(title)) return false;
+  return !/\b(interview|podcast|episode|vlog|reaction|review|commentary|news|documentary|talk show|gameplay|trailer|behind the scenes|tutorial|lesson|livestream|live stream)\b/i.test(title);
+}
+
+function musicScore(track: Track): number {
+  const text = `${track.title} ${track.artist}`;
+  let score = 0;
+  if (/\b(official audio|official music video|music video|lyrics?|visualizer|audio only|album)\b/i.test(text)) score += 5;
+  if (/\b(song|music|cover|acoustic|remix|karaoke)\b/i.test(text)) score += 2;
+  if (/\b(interview|podcast|episode|vlog|reaction|review|commentary|news|documentary|talk show|gameplay|trailer|behind the scenes|tutorial|lesson|livestream|live stream)\b/i.test(text)) score -= 20;
+  return score;
+}
+
+function rankMusicTracks(items: Track[]): Track[] {
+  return items
+    .filter((track) => isMusicLikeTitle(track.title))
+    .sort((a, b) => musicScore(b) - musicScore(a));
 }
 
 function extractVideoId(value?: string): string {
@@ -196,7 +291,7 @@ export async function getPopularYouTube(): Promise<Track[]> {
       const response = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
       if (response.ok) {
         const data = (await response.json()) as PopularResponse;
-        const result = (data.items ?? []).flatMap((item) => (item.id ? [toTrack(item.id, item.snippet)] : []));
+        const result = rankMusicTracks((data.items ?? []).flatMap((item) => (item.id ? [toTrack(item.id, item.snippet)] : [])));
         if (result.length > 0) {
           cache.set('popular-nepali', { expires: Date.now() + CACHE_TTL, tracks: result });
           return result;
@@ -210,6 +305,25 @@ export async function getPopularYouTube(): Promise<Track[]> {
 
 export async function getMusicByMood(moodQuery: string): Promise<Track[]> {
   return searchYouTube(moodQuery);
+}
+
+export async function resolveAudioStream(videoId: string): Promise<string | null> {
+  if (!videoId) return null;
+  try {
+    const response = await fetchWithTimeout(`https://pipedapi.kavin.rocks/streams/${encodeURIComponent(videoId)}`, 8000);
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      audioStreams?: { url?: string; bitrate?: number; codec?: string; mimeType?: string }[];
+    };
+    const candidates = (data.audioStreams ?? [])
+      .filter((stream) => Boolean(stream.url))
+      .filter((stream) => !stream.mimeType || stream.mimeType.startsWith('audio/'))
+      .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+    return candidates[0]?.url ?? null;
+  } catch (error) {
+    console.warn('Audio stream resolution failed:', error);
+    return null;
+  }
 }
 
 export async function getSearchSuggestions(query: string): Promise<string[]> {
@@ -240,15 +354,20 @@ export async function getSearchSuggestions(query: string): Promise<string[]> {
 // Continuous Song Discovery Engine (like Echo Brain / Radio)
 export async function getRelatedTracks(currentTrack: Track): Promise<Track[]> {
   const queries = [
-    `${currentTrack.artist} songs`,
-    `${currentTrack.artist} similar nepali music`,
-    `${currentTrack.title} nepali radio station`,
+    `${currentTrack.artist} official songs music`,
+    `${currentTrack.artist} official audio`,
+    `${currentTrack.title} similar songs music`,
   ];
 
   for (const query of queries) {
     try {
       const list = await searchYouTube(query);
-      const filtered = list.filter((item) => item.id !== currentTrack.id && item.videoId !== currentTrack.videoId);
+      const filtered = list.filter(
+        (item) =>
+          item.id !== currentTrack.id &&
+          item.videoId !== currentTrack.videoId &&
+          isMusicLikeTitle(item.title)
+      );
       if (filtered.length >= 4) {
         return filtered;
       }
@@ -258,19 +377,28 @@ export async function getRelatedTracks(currentTrack: Track): Promise<Track[]> {
   return tracks.filter((t) => t.id !== currentTrack.id);
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = 7000) {
+async function fetchWithTimeout(url: string, timeoutMs = 7000, init?: RequestInit) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
   }
 }
 
+function parseDisplayDuration(value: string): number {
+  const parts = value.split(':').map(Number);
+  if (parts.some((part) => !Number.isFinite(part))) return 0;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
+
 function toTrack(videoId: string, snippet?: VideoSnippet): Track {
   const rawTitle = snippet?.title ?? 'Untitled track';
-  const clean = cleanTrackTitle(rawTitle);
+  const rawArtist = snippet?.channelTitle?.replace(' - Topic', '') ?? '';
+  const clean = cleanTrackTitle(rawTitle, rawArtist);
   const artwork =
     snippet?.thumbnails?.high?.url ??
     snippet?.thumbnails?.medium?.url ??
@@ -281,14 +409,14 @@ function toTrack(videoId: string, snippet?: VideoSnippet): Track {
     id: videoId,
     videoId,
     title: clean.title,
-    artist: snippet?.channelTitle?.replace(' - Topic', '') ?? clean.artist ?? 'Geet Artist',
+    artist: rawArtist || clean.artist || 'Geet Artist',
     artwork,
     duration: '4:15',
     durationSeconds: 255,
   };
 }
 
-export function cleanTrackTitle(title: string): { title: string; artist?: string } {
+export function cleanTrackTitle(title: string, knownArtist = ''): { title: string; artist?: string } {
   let cleaned = decodeHtmlEntities(title);
   cleaned = cleaned
     .replace(/\s*\((?:official|official video|official audio|lyrics?|music video|4k|hd)[^)]*\)/gi, '')
@@ -297,9 +425,15 @@ export function cleanTrackTitle(title: string): { title: string; artist?: string
     .trim();
 
   const splitHyphen = cleaned.split(/\s+-\s+/);
-  if (splitHyphen.length === 2) {
+  const potentialArtist = splitHyphen[0]?.trim() ?? '';
+  const artistMatches =
+    potentialArtist.length > 0 &&
+    knownArtist.length > 0 &&
+    (knownArtist.toLocaleLowerCase().includes(potentialArtist.toLocaleLowerCase()) ||
+      potentialArtist.toLocaleLowerCase().includes(knownArtist.toLocaleLowerCase()));
+  if (splitHyphen.length === 2 && artistMatches) {
     return {
-      artist: splitHyphen[0].trim(),
+      artist: potentialArtist,
       title: splitHyphen[1].trim(),
     };
   }

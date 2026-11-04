@@ -9,6 +9,7 @@ export type Track = {
   album?: string;
   year?: string;
   views?: string;
+  audioUrl?: string;
 };
 
 export type Collection = {

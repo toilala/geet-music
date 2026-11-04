@@ -1,5 +1,4 @@
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { forwardRef } from 'react';
 import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
@@ -8,6 +7,7 @@ import { Colors } from '@/constants/theme';
 import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
 import type { Track } from '@/data/music';
+import { TrackArtwork } from '@/components/music/track-artwork';
 
 const colors = Colors.dark;
 
@@ -70,7 +70,7 @@ export const TrackOptionsSheet = forwardRef<BottomSheetModal, Props>(({ track, o
       <BottomSheetScrollView contentContainerStyle={styles.container}>
 
         <View style={styles.trackCard}>
-          <Image source={track.artwork} style={styles.artwork} contentFit="cover" />
+          <TrackArtwork track={track} style={styles.artwork} contentFit="cover" />
           <View style={styles.trackMeta}>
             <Text numberOfLines={1} style={styles.title}>
               {track.title}

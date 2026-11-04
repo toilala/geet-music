@@ -16,13 +16,14 @@ import { tracks, type RepeatMode, type Track } from '@/data/music';
 import type { PlaybackSnapshot, PlaybackStatus } from '@/services/playback';
 import { recordSignal, type ListeningSignalType } from '@/services/recommendations';
 import { getRelatedTracks } from '@/services/youtube';
-import { generateEchoBrainQueue } from '@/services/echo-brain';
+import { generateEchoBrainQueue } from '@/services/brain';
 import type { ThemeMode } from '@/constants/theme';
 import {
   DEFAULT_PLAYER_PREFERENCES,
   readPlayerPreferences,
   updatePlayerPreferences,
 } from '@/services/player-preferences';
+import { readPersistedPlayerState, writePersistedPlayerState } from '@/services/player-state';
 
 type PlayerController = {
   play: () => void;
@@ -95,8 +96,10 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
   const [isDockCollapsed, setIsDockCollapsed] = useState(false);
+  const [playerStateLoaded, setPlayerStateLoaded] = useState(false);
 
   const controllerRef = useRef<PlayerController | null>(null);
+  const playerStateWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -116,6 +119,56 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    void readPersistedPlayerState().then((state) => {
+      if (!mounted) return;
+      if (state) {
+        setActiveTrack(state.activeTrack);
+        setQueue(state.queue.length > 0 ? state.queue : [state.activeTrack]);
+        setOriginalQueue(state.originalQueue.length > 0 ? state.originalQueue : state.queue);
+        setCurrentTime(state.currentTime);
+        setDuration(state.duration);
+        setShuffleEnabled(state.shuffleEnabled);
+        setRepeatMode(state.repeatMode);
+      }
+      setPlayerStateLoaded(true);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!playerStateLoaded) return;
+    if (playerStateWriteTimer.current) clearTimeout(playerStateWriteTimer.current);
+    playerStateWriteTimer.current = setTimeout(() => {
+      void writePersistedPlayerState({
+        activeTrack,
+        queue,
+        originalQueue,
+        currentTime,
+        duration,
+        playing,
+        shuffleEnabled,
+        repeatMode,
+      });
+    }, 750);
+    return () => {
+      if (playerStateWriteTimer.current) clearTimeout(playerStateWriteTimer.current);
+    };
+  }, [
+    activeTrack,
+    queue,
+    originalQueue,
+    currentTime,
+    duration,
+    playing,
+    shuffleEnabled,
+    repeatMode,
+    playerStateLoaded,
+  ]);
+
+  useEffect(() => {
     if (!preferencesLoaded) return;
     void updatePlayerPreferences({
       volume,
@@ -132,12 +185,19 @@ export function PlayerProvider({ children }: PropsWithChildren) {
   const brainEnabled = useRef(true);
   useEffect(() => {
     if (!activeTrack?.artist) return;
-    if (discoveredArtists.current.has(activeTrack.artist)) return;
+    const currentIndex = queue.findIndex((track) => track.id === activeTrack.id || track.videoId === activeTrack.videoId);
+    const remaining = currentIndex < 0 ? 0 : queue.length - currentIndex - 1;
+    const shouldDiscover = remaining <= 2;
+    if (discoveredArtists.current.has(activeTrack.artist) && !shouldDiscover) return;
     discoveredArtists.current.add(activeTrack.artist);
 
     let mounted = true;
     if (brainEnabled.current) {
-      void generateEchoBrainQueue(activeTrack, queue, { minQueueSize: 5, maxInjected: 8 }).then((result) => {
+      void generateEchoBrainQueue(activeTrack, queue, {
+        minQueueSize: 5,
+        maxInjected: 8,
+        forceDiscovery: remaining <= 2,
+      }).then((result) => {
         if (mounted && result.tracks.length > queue.length) {
           setQueue(result.tracks);
           setOriginalQueue((current) => {
@@ -239,6 +299,13 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       const currentIndex = currentQueue.findIndex(
         (item) => item.id === activeTrack.id || item.videoId === activeTrack.videoId
       );
+
+      const isLastTrack = currentIndex >= currentQueue.length - 1;
+      if (isLastTrack && repeatMode === 'off') {
+        setPlaying(false);
+        setPlaybackStatus('ready');
+        return currentQueue;
+      }
 
       const nextIndex = (currentIndex + 1) % currentQueue.length;
       const nextTrack = currentQueue[nextIndex];

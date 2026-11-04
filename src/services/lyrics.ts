@@ -2,6 +2,8 @@ import { parseLyric, type LyricLine } from 'lyric-kit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type LyricsResponse = {
+  trackName?: string;
+  artistName?: string;
   duration?: number;
   plainLyrics?: string | null;
   syncedLyrics?: string | null;
@@ -16,6 +18,12 @@ export type LyricsPayload = {
 
 export type LyricsProvider = 'auto' | 'lrclib' | 'lyrics-ovh';
 const LYRICS_PROVIDER_KEY = '@geet/lyrics-provider-v1';
+const LYRICS_CACHE_KEY = '@geet/lyrics-cache-v1';
+
+type CachedLyrics = {
+  savedAt: number;
+  payload: LyricsPayload;
+};
 
 export async function getLyricsProvider(): Promise<LyricsProvider> {
   try {
@@ -93,7 +101,10 @@ const VERIFIED_NEPALI_LYRICS: Record<string, string> = {
 
 export async function getLyrics(title: string, artist: string, duration?: number): Promise<LyricsPayload> {
   const normalizedTitle = cleanTitle(title).toLowerCase();
+  const cacheKey = `${normalizedTitle}:${artist.toLowerCase()}`;
   const provider = await getLyricsProvider();
+
+  const cached = await readCachedLyrics(cacheKey);
 
   // 1. Check verified synced Nepali lyrics first (Instant & high-quality)
   for (const [key, lrc] of Object.entries(VERIFIED_NEPALI_LYRICS)) {
@@ -109,7 +120,9 @@ export async function getLyrics(title: string, artist: string, duration?: number
       (key.includes('machi') && normalizedTitle.includes('machi')) ||
       (key.includes('maya-ta') && normalizedTitle.includes('maya ta'))
     ) {
-      return parseContent(lrc.trim(), 'Verified lyrics', true);
+      const payload = parseContent(lrc.trim(), 'Verified lyrics', true);
+      await cacheLyrics(cacheKey, payload);
+      return payload;
     }
   }
 
@@ -121,9 +134,13 @@ export async function getLyrics(title: string, artist: string, duration?: number
       selectedProvider === 'lrclib'
         ? await getLrclibLyrics(title, artist, duration)
         : await getLyricsOvh(title, artist, duration);
-    if (result) return result;
+    if (result) {
+      await cacheLyrics(cacheKey, result);
+      return result;
+    }
   }
 
+  if (cached) return { ...cached, source: `${cached.source} (cached)` };
   return {
     lines: [],
     synced: false,
@@ -132,12 +149,37 @@ export async function getLyrics(title: string, artist: string, duration?: number
   };
 }
 
+async function readCachedLyrics(key: string): Promise<LyricsPayload | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LYRICS_CACHE_KEY);
+    if (!raw) return null;
+    const store = JSON.parse(raw) as Record<string, CachedLyrics>;
+    const entry = store[key];
+    if (!entry || Date.now() - entry.savedAt > 30 * 24 * 60 * 60 * 1000) return null;
+    return entry.payload;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheLyrics(key: string, payload: LyricsPayload): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(LYRICS_CACHE_KEY);
+    const store = raw ? (JSON.parse(raw) as Record<string, CachedLyrics>) : {};
+    store[key] = { savedAt: Date.now(), payload };
+    await AsyncStorage.setItem(LYRICS_CACHE_KEY, JSON.stringify(store));
+  } catch (error) {
+    console.warn('Unable to cache lyrics:', error);
+  }
+}
+
 async function getLrclibLyrics(
   title: string,
   artist: string,
   duration?: number
 ): Promise<LyricsPayload | null> {
-  const params = new URLSearchParams({ track_name: cleanTitle(title), artist_name: artist });
+  const cleanedTitle = cleanTitle(title);
+  const params = new URLSearchParams({ track_name: cleanedTitle, artist_name: artist });
   if (duration && duration > 0) params.set('duration', String(Math.round(duration)));
 
   try {
@@ -149,12 +191,45 @@ async function getLrclibLyrics(
       }
     }
 
-    const searchParams = new URLSearchParams({ q: `${cleanTitle(title)} ${artist}` });
-    const searchResponse = await fetchWithTimeout(`https://lrclib.net/api/search?${searchParams.toString()}`);
-    if (searchResponse.ok) {
+    const searchParams = new URLSearchParams({ q: `${cleanedTitle} ${artist}` });
+    let searchResponse: Response | null = null;
+    try {
+      searchResponse = await fetchWithTimeout(`https://lrclib.net/api/search?${searchParams.toString()}`);
+    } catch {
+      searchResponse = null;
+    }
+    if (searchResponse?.ok) {
       const matches = (await searchResponse.json()) as LyricsResponse[];
-      const match = matches.find((item) => item.syncedLyrics || item.plainLyrics);
+      const normalizedArtist = artist.toLowerCase();
+      const normalizedQueryTitle = cleanedTitle.toLowerCase();
+      const match = matches
+        .filter((item) => item.syncedLyrics || item.plainLyrics)
+        .sort((a, b) => scoreLyricsMatch(b, normalizedQueryTitle, normalizedArtist) - scoreLyricsMatch(a, normalizedQueryTitle, normalizedArtist))[0];
       if (match) return parseResponse(match, 'LRCLIB', duration);
+    }
+
+    const titleOnlyParams = new URLSearchParams({ q: cleanedTitle });
+    let titleOnlyResponse: Response | null = null;
+    try {
+      titleOnlyResponse = await fetchWithTimeout(`https://lrclib.net/api/search?${titleOnlyParams.toString()}`);
+    } catch {
+      titleOnlyResponse = null;
+    }
+    if (titleOnlyResponse?.ok) {
+      const matches = (await titleOnlyResponse.json()) as LyricsResponse[];
+      const normalizedQueryTitle = cleanedTitle.toLowerCase();
+      const match = matches
+        .filter((item) => item.syncedLyrics || item.plainLyrics)
+        .sort((a, b) => scoreLyricsMatch(b, normalizedQueryTitle, '') - scoreLyricsMatch(a, normalizedQueryTitle, ''))[0];
+      if (match) return parseResponse(match, 'LRCLIB', duration);
+    }
+
+    function scoreLyricsMatch(item: LyricsResponse, title: string, artist: string): number {
+      const itemTitle = item.trackName?.toLowerCase() ?? '';
+      const itemArtist = item.artistName?.toLowerCase() ?? '';
+      return (itemTitle === title ? 4 : itemTitle.includes(title) || title.includes(itemTitle) ? 2 : 0)
+        + (itemArtist === artist ? 4 : itemArtist.includes(artist) || artist.includes(itemArtist) ? 2 : 0)
+        + (item.syncedLyrics ? 2 : 0);
     }
   } catch {
     return null;

@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { router, usePathname } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View, Vibration } from 'react-native';
@@ -6,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
 import { usePlayer } from '@/context/player-context';
+import { TrackArtwork } from '@/components/music/track-artwork';
 
 const colors = Colors.dark;
 
@@ -63,8 +63,8 @@ export default function AppTabs() {
           <Pressable
             onPress={handleOpenPlayer}
             style={({ pressed }) => [styles.morphedPlayerPill, pressed && styles.pressed]}>
-            <Image
-              source={activeTrack.artwork}
+            <TrackArtwork
+              track={activeTrack}
               style={styles.morphedArtwork}
               contentFit="cover"
             />

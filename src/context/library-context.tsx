@@ -1,13 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { Vibration } from 'react-native';
 
 import type { Playlist, Track } from '@/data/music';
-
-const LIKED_KEY = '@geet/liked-tracks-v2';
-const PLAYLISTS_KEY = '@geet/playlists-v2';
-const HISTORY_KEY = '@geet/history-v2';
-const SEARCH_HISTORY_KEY = '@geet/search-history-v2';
+import { readLibrarySnapshot, writeLibraryValue } from '@/services/library-repository';
 
 type LibraryContextValue = {
   likedTracks: Track[];
@@ -43,41 +38,12 @@ export function LibraryProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let mounted = true;
-    void Promise.all([
-      AsyncStorage.getItem(LIKED_KEY),
-      AsyncStorage.getItem(PLAYLISTS_KEY),
-      AsyncStorage.getItem(HISTORY_KEY),
-      AsyncStorage.getItem(SEARCH_HISTORY_KEY),
-    ]).then(([likedRaw, playlistsRaw, historyRaw, searchRaw]) => {
+    void readLibrarySnapshot().then(({ likedTracks, playlists, history, searchHistory }) => {
       if (!mounted) return;
-      if (likedRaw) {
-        try {
-          setLikedTracks(JSON.parse(likedRaw));
-        } catch {
-
-        }
-      }
-      if (playlistsRaw) {
-        try {
-          setPlaylists(JSON.parse(playlistsRaw));
-        } catch {
-
-        }
-      }
-      if (historyRaw) {
-        try {
-          setHistory(JSON.parse(historyRaw));
-        } catch {
-
-        }
-      }
-      if (searchRaw) {
-        try {
-          setSearchHistory(JSON.parse(searchRaw));
-        } catch {
-
-        }
-      }
+      setLikedTracks(likedTracks);
+      setPlaylists(playlists);
+      setHistory(history);
+      if (searchHistory.length > 0) setSearchHistory(searchHistory);
     });
     return () => {
       mounted = false;
@@ -98,7 +64,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     setLikedTracks((current) => {
       const exists = current.some((item) => item.id === track.id);
       const updated = exists ? current.filter((item) => item.id !== track.id) : [track, ...current];
-      void AsyncStorage.setItem(LIKED_KEY, JSON.stringify(updated));
+      void writeLibraryValue('likedTracks', updated);
       return updated;
     });
   }, []);
@@ -119,7 +85,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     };
     setPlaylists((current) => {
       const updated = [newPlaylist, ...current];
-      void AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(updated));
+      void writeLibraryValue('playlists', updated);
       return updated;
     });
     return newPlaylist;
@@ -146,7 +112,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
         }
         return pl;
       });
-      void AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(updated));
+      void writeLibraryValue('playlists', updated);
       return updated;
     });
     return added;
@@ -165,7 +131,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
         }
         return pl;
       });
-      void AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(updated));
+      void writeLibraryValue('playlists', updated);
       return updated;
     });
   }, []);
@@ -178,7 +144,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     }
     setPlaylists((current) => {
       const updated = current.filter((pl) => pl.id !== playlistId);
-      void AsyncStorage.setItem(PLAYLISTS_KEY, JSON.stringify(updated));
+      void writeLibraryValue('playlists', updated);
       return updated;
     });
   }, []);
@@ -187,14 +153,14 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     setHistory((current) => {
       const filtered = current.filter((item) => item.id !== track.id);
       const updated = [track, ...filtered].slice(0, 50);
-      void AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+      void writeLibraryValue('history', updated);
       return updated;
     });
   }, []);
 
   const clearHistory = useCallback(() => {
     setHistory([]);
-    void AsyncStorage.removeItem(HISTORY_KEY);
+    void writeLibraryValue('history', []);
   }, []);
 
   const addSearchTerm = useCallback((term: string) => {
@@ -203,7 +169,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     setSearchHistory((current) => {
       const filtered = current.filter((item) => item.toLowerCase() !== trimmed.toLowerCase());
       const updated = [trimmed, ...filtered].slice(0, 15);
-      void AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+      void writeLibraryValue('searchHistory', updated);
       return updated;
     });
   }, []);
@@ -211,14 +177,14 @@ export function LibraryProvider({ children }: PropsWithChildren) {
   const removeSearchTerm = useCallback((term: string) => {
     setSearchHistory((current) => {
       const updated = current.filter((item) => item !== term);
-      void AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+      void writeLibraryValue('searchHistory', updated);
       return updated;
     });
   }, []);
 
   const clearSearchHistory = useCallback(() => {
     setSearchHistory([]);
-    void AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
+    void writeLibraryValue('searchHistory', []);
   }, []);
 
   const value = useMemo(

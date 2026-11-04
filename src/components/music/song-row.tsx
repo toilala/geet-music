@@ -1,10 +1,10 @@
-import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import type { Track } from '@/data/music';
+import { TrackArtwork } from '@/components/music/track-artwork';
 
 const colors = Colors.dark;
 
@@ -72,8 +72,8 @@ export function SongRow({ track, active, onPress, onOptionsPress, rank }: Props)
       ) : null}
 
       <View style={styles.artworkContainer}>
-        <Image
-          source={track.artwork}
+        <TrackArtwork
+          track={track}
           style={styles.artwork}
           contentFit="cover"
           transition={160}

@@ -124,10 +124,13 @@ export default function ExploreScreen() {
     }
     const timer = setTimeout(() => {
       setLoading(true);
-      void searchYouTube(trimmed).then((res) => {
-        setResults(res);
-        setLoading(false);
-      });
+      void searchYouTube(trimmed)
+        .then((res) => setResults(res))
+        .catch((error) => {
+          setResults([]);
+          console.warn('Explore search failed:', error);
+        })
+        .finally(() => setLoading(false));
     }, 350);
     return () => clearTimeout(timer);
   }, [query]);
@@ -222,7 +225,9 @@ export default function ExploreScreen() {
               </View>
             ) : (
               <View style={styles.cardContainer}>
-                {results.map((track) => (
+                {results.length === 0 ? (
+                  <Text style={styles.loaderText}>No tracks found. Try another search.</Text>
+                ) : results.map((track) => (
                   <SongRow
                     key={track.id}
                     track={track}

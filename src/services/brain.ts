@@ -6,6 +6,7 @@ export type EchoBrainOptions = {
   minQueueSize?: number;
   maxInjected?: number;
   excludedIds?: Iterable<string>;
+  forceDiscovery?: boolean;
 };
 
 export type EchoBrainResult = {
@@ -56,7 +57,7 @@ export async function generateEchoBrainQueue(
   options: EchoBrainOptions = {},
 ): Promise<EchoBrainResult> {
   const minQueueSize = options.minQueueSize ?? 4;
-  if (currentQueue.length >= minQueueSize) {
+  if (!options.forceDiscovery && currentQueue.length >= minQueueSize) {
     return { tracks: currentQueue, reason: 'momentum' };
   }
 

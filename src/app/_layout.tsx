@@ -10,6 +10,7 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { PlayerProvider } from '@/context/player-context';
 import { LibraryProvider } from '@/context/library-context';
 import { PlaybackEngine } from '@/components/music/playback-engine';
+import { AppErrorBoundary } from '@/components/app-error-boundary';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,7 +24,8 @@ export default function RootLayout() {
   };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <AppErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <PaperProvider theme={paperTheme}>
         <BottomSheetModalProvider>
           <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
@@ -43,6 +45,7 @@ export default function RootLayout() {
           </ThemeProvider>
         </BottomSheetModalProvider>
       </PaperProvider>
-    </GestureHandlerRootView>
+      </GestureHandlerRootView>
+    </AppErrorBoundary>
   );
 }

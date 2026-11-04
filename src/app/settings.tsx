@@ -12,6 +12,7 @@ import {
   updatePlayerPreferences,
   type PlayerPreferences,
 } from '@/services/player-preferences';
+import { getLyricsProvider, setLyricsProvider, type LyricsProvider } from '@/services/lyrics';
 
 const colors = Colors.dark;
 
@@ -19,9 +20,11 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const player = usePlayer();
   const [preferences, setPreferences] = useState<PlayerPreferences | null>(null);
+  const [lyricsProvider, setLyricsProviderState] = useState<LyricsProvider>('auto');
 
   useEffect(() => {
     void readPlayerPreferences().then(setPreferences);
+    void getLyricsProvider().then(setLyricsProviderState);
   }, []);
 
   const update = (patch: Partial<PlayerPreferences>) => {
@@ -62,6 +65,13 @@ export default function SettingsScreen() {
         <View style={styles.group}>
           <SettingRow label="Hide player thumbnail" description="Keep the mini player compact and text-first." value={preferences?.hidePlayerThumbnail ?? false} onChange={(value) => { player.setHidePlayerThumbnail(value); update({ hidePlayerThumbnail: value }); }} />
           <SettingRow label="Smooth lyric animation" description="Use synchronized, animated lyric transitions in the player." value={preferences?.lyricAnimation === 'smooth'} onChange={(value) => update({ lyricAnimation: value ? 'smooth' : 'minimal' })} />
+        </View>
+
+        <Text style={styles.eyebrow}>LYRICS</Text>
+        <View style={styles.group}>
+          <ThemeRow active={lyricsProvider === 'auto'} label="Automatic provider" onPress={() => { setLyricsProviderState('auto'); void setLyricsProvider('auto'); }} />
+          <ThemeRow active={lyricsProvider === 'lrclib'} label="LRCLIB" onPress={() => { setLyricsProviderState('lrclib'); void setLyricsProvider('lrclib'); }} />
+          <ThemeRow active={lyricsProvider === 'lyrics-ovh'} label="Lyrics.ovh" onPress={() => { setLyricsProviderState('lyrics-ovh'); void setLyricsProvider('lyrics-ovh'); }} />
         </View>
 
         <Text style={styles.eyebrow}>APPEARANCE</Text>
