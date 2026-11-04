@@ -8,7 +8,6 @@ import {
   Dimensions,
   Animated,
   Pressable,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -22,11 +21,11 @@ import { TrackOptionsSheet } from '@/components/music/track-options-sheet';
 import { Colors } from '@/constants/theme';
 import { useLibrary } from '@/context/library-context';
 import { usePlayer } from '@/context/player-context';
-import { tracks, type Track } from '@/data/music';
+import { tracks } from '@/data/music';
 import { getLyrics, lyricText } from '@/services/lyrics';
 
 const colors = Colors.dark;
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ARTWORK_SIZE = Math.min(SCREEN_WIDTH - 56, 340);
 
 export default function PlayerScreen() {
@@ -78,7 +77,7 @@ export default function PlayerScreen() {
 
   const [progressWidth, setProgressWidth] = useState(1);
   const [volumeWidth, setVolumeWidth] = useState(1);
-  const artworkScale = useRef(new Animated.Value(1)).current;
+  const [artworkScale] = useState(() => new Animated.Value(1));
 
   // INITIAL MOUNT ONLY: sync if opened with specific track id
   const hasInitialized = useRef(false);
