@@ -1,6 +1,7 @@
 import type { Track } from '@/types/music';
 import { getRelatedTracks } from '@/services/youtube';
 import { getDynamicRecommendations, readSignals, type ListeningSignal } from '@/services/recommendations';
+import { rankMusicFlowCandidates } from '@/engines/music-flow/ranking';
 
 export type EchoBrainOptions = {
   minQueueSize?: number;
@@ -66,11 +67,14 @@ export async function generateEchoBrainQueue(
   const recommendations = await getDynamicRecommendations(currentTrack);
   const related = await getRelatedTracks(currentTrack);
   const preferredIds = new Set(momentum.slice(0, 5).map((signal) => signal.trackId));
-  const candidates = [
+  const candidates = rankMusicFlowCandidates([
     ...recommendations.filter((track) => preferredIds.has(track.id)),
     ...related,
     ...recommendations,
-  ];
+  ].map((song) => ({ song, source: 'catalog' as const }))
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.song.id === item.song.id) === index)
+    .slice(0, 32), [], new Set(momentum.slice(0, 5).map((signal) => signal.artist.toLowerCase())))
+    .map((item) => item.song);
   const queue = mergeQueueTracks(currentQueue, candidates, options);
 
   return {

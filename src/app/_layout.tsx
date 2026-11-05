@@ -1,18 +1,14 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PaperProvider, MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 import { useColorScheme } from 'react-native';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { PlayerProvider } from '@/context/player-context';
 import { LibraryProvider } from '@/context/library-context';
 import { PlaybackEngine } from '@/components/music/playback-engine';
 import { AppErrorBoundary } from '@/components/app-error-boundary';
-
-SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -32,7 +28,6 @@ export default function RootLayout() {
             <PlayerProvider>
               <LibraryProvider>
                 <PlaybackEngine />
-                <AnimatedSplashOverlay />
                 <Stack>
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   <Stack.Screen name="recognition" options={{ headerShown: false, presentation: 'modal' }} />

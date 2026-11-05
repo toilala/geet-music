@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { tracks, type Track } from '@/data/music';
 import { searchYouTube } from '@/services/youtube';
+import { songPlayStatsRepository } from '@/engines/generate/song-play-stats-repository';
 
 const STORAGE_KEY = '@geet/music-signals-v2';
 
@@ -54,10 +55,20 @@ export async function recordSignal(track: Track, signal: ListeningSignalType) {
     if (signal === 'play') {
       current.plays += 1;
       current.lastPlayedAt = now;
+      void songPlayStatsRepository.recordListenedMs(track.title, track.artist, track.videoId, track.artwork, 0, false);
     } else if (signal === 'complete') {
       current.completed += 1;
+      void songPlayStatsRepository.recordListenedMs(
+        track.title,
+        track.artist,
+        track.videoId,
+        track.artwork,
+        Math.max(0, (track.durationSeconds ?? 0) * 1000),
+        true,
+      );
     } else if (signal === 'skip') {
       current.skips += 1;
+      void songPlayStatsRepository.recordSkip(track.title, track.artist, track.videoId, track.artwork, 0);
     } else if (signal === 'like') {
       current.liked = !current.liked;
     }

@@ -24,6 +24,8 @@ import {
   updatePlayerPreferences,
 } from '@/services/player-preferences';
 import { readPersistedPlayerState, writePersistedPlayerState } from '@/services/player-state';
+import { recommendationEngine, type EngineResult } from '@/engines/generate';
+import { MusicFlowRepository, MusicFlowSession } from '@/engines/music-flow';
 
 type PlayerController = {
   play: () => void;
@@ -74,11 +76,14 @@ type PlayerContextValue = {
   setHidePlayerThumbnail: (hidden: boolean) => void;
   isDockCollapsed: boolean;
   setIsDockCollapsed: (collapsed: boolean) => void;
+  generateTasteMix: (count?: number) => Promise<EngineResult>;
+  musicFlowSession: MusicFlowSession;
 };
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 export function PlayerProvider({ children }: PropsWithChildren) {
+  const musicFlowSession = useMemo(() => new MusicFlowSession(new MusicFlowRepository()), []);
   const [activeTrack, setActiveTrack] = useState<Track>(tracks[0]);
   const [queue, setQueue] = useState<Track[]>(tracks);
   const [originalQueue, setOriginalQueue] = useState<Track[]>(tracks);
@@ -483,6 +488,8 @@ export function PlayerProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
+  const generateTasteMix = useCallback((count = 25) => recommendationEngine.generate(count), []);
+
   const value = useMemo(
     () => ({
       activeTrack,
@@ -524,6 +531,8 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       setHidePlayerThumbnail,
       isDockCollapsed,
       setIsDockCollapsed,
+      generateTasteMix,
+      musicFlowSession,
     }),
     [
       activeTrack,
@@ -563,6 +572,8 @@ export function PlayerProvider({ children }: PropsWithChildren) {
       setHidePlayerThumbnail,
       toggleThemeMode,
       isDockCollapsed,
+      generateTasteMix,
+      musicFlowSession,
     ]
   );
 
