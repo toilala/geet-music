@@ -32,16 +32,14 @@ async function section(id: string, title: string, query: string): Promise<Browse
 }
 
 export async function getExplorePage(): Promise<BrowsePage> {
-  const [charts, newMusic, podcasts] = await Promise.all([
+  const [charts, newMusic] = await Promise.all([
     getPopularYouTube(),
     searchYouTube('new music official audio'),
-    searchYouTube('music podcasts latest'),
   ]);
   return {
     sections: [
       { id: 'charts', title: 'Charts', items: charts },
       { id: 'new-releases', title: 'New releases', items: newMusic },
-      { id: 'podcasts', title: 'Podcasts', items: podcasts },
     ],
   };
 }
@@ -66,6 +64,3 @@ export async function getMoodAndGenreSections(): Promise<BrowseSection[]> {
   ]);
 }
 
-export async function getPodcastTracks(query = 'best music podcasts'): Promise<Track[]> {
-  return searchYouTube(query);
-}

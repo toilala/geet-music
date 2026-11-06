@@ -1,4 +1,5 @@
 import { tracks, type Track } from '@/data/music';
+import { filterMusicSuggestion, isMusicLikeContent, isNonMusicContent } from '@/core/content-filter';
 
 type SearchResponse = {
   items?: {
@@ -108,7 +109,7 @@ export async function searchYouTube(query: string): Promise<Track[]> {
       };
       if (pipedData.items && pipedData.items.length > 0) {
         const pipedTracks: Track[] = pipedData.items
-          .filter((item) => (item.duration ?? 0) >= 90 && isMusicLikeTitle(item.title ?? ''))
+          .filter((item) => (item.duration ?? 0) >= 90 && isMusicLikeTitle(item.title ?? '', item.uploaderName ?? ''))
           .map((item) => {
           const videoId = extractVideoId(item.url);
           const durSec = item.duration ?? 220;
@@ -137,7 +138,7 @@ export async function searchYouTube(query: string): Promise<Track[]> {
       t.title.toLowerCase().includes(trimmed) ||
       t.artist.toLowerCase().includes(trimmed) ||
       (t.album && t.album.toLowerCase().includes(trimmed))
-  );
+  ).filter((track) => isMusicLikeContent(track.title, track.artist));
 
   return localMatches;
 }
@@ -171,7 +172,7 @@ async function searchYouTubeInnertube(query: string): Promise<Track[]> {
       const artist = video.ownerText?.runs?.map((run) => run.text ?? '').join('') ?? 'Geet Artist';
       const duration = video.lengthText?.simpleText ?? '4:15';
       const durationSeconds = parseDisplayDuration(duration);
-      if (durationSeconds < 90 || !isMusicLikeTitle(title)) return [];
+      if (durationSeconds < 90 || !isMusicLikeTitle(title, artist)) return [];
       return [{
         id: video.videoId,
         videoId: video.videoId,
@@ -200,7 +201,7 @@ async function searchYouTubeInnertube(query: string): Promise<Track[]> {
 }
 
 async function filterFullLengthTracks(candidates: Track[]): Promise<Track[]> {
-  const filtered = candidates.filter((track) => !isShortFormTitle(track.title));
+  const filtered = candidates.filter((track) => isMusicLikeTitle(track.title, track.artist) && !isShortFormTitle(track.title));
   const apiKey = getApiKey();
   if (!apiKey || filtered.length === 0) return filtered;
 
@@ -237,9 +238,8 @@ function isShortFormTitle(title: string): boolean {
   return /(^|\s)#?shorts?\b|(^|\s)short\s*video\b/i.test(title);
 }
 
-function isMusicLikeTitle(title: string): boolean {
-  if (isShortFormTitle(title)) return false;
-  return !/\b(interview|podcast|episode|vlog|reaction|review|commentary|news|documentary|talk show|gameplay|trailer|behind the scenes|tutorial|lesson|livestream|live stream)\b/i.test(title);
+function isMusicLikeTitle(title: string, artist = ''): boolean {
+  return isMusicLikeContent(title, artist);
 }
 
 function musicScore(track: Track): number {
@@ -247,13 +247,13 @@ function musicScore(track: Track): number {
   let score = 0;
   if (/\b(official audio|official music video|music video|lyrics?|visualizer|audio only|album)\b/i.test(text)) score += 5;
   if (/\b(song|music|cover|acoustic|remix|karaoke)\b/i.test(text)) score += 2;
-  if (/\b(interview|podcast|episode|vlog|reaction|review|commentary|news|documentary|talk show|gameplay|trailer|behind the scenes|tutorial|lesson|livestream|live stream)\b/i.test(text)) score -= 20;
+  if (isNonMusicContent(track.title, track.artist)) score -= 40;
   return score;
 }
 
 function rankMusicTracks(items: Track[]): Track[] {
   return items
-    .filter((track) => isMusicLikeTitle(track.title))
+    .filter((track) => isMusicLikeTitle(track.title, track.artist) && (track.durationSeconds ?? 0) >= 90)
     .sort((a, b) => musicScore(b) - musicScore(a));
 }
 
@@ -336,7 +336,7 @@ export async function getSearchSuggestions(query: string): Promise<string[]> {
     if (response.ok) {
       const data = (await response.json()) as [string, string[]];
       if (Array.isArray(data) && Array.isArray(data[1])) {
-        return data[1].slice(0, 8);
+        return data[1].filter(filterMusicSuggestion).slice(0, 8);
       }
     }
   } catch {}
@@ -366,7 +366,7 @@ export async function getRelatedTracks(currentTrack: Track): Promise<Track[]> {
         (item) =>
           item.id !== currentTrack.id &&
           item.videoId !== currentTrack.videoId &&
-          isMusicLikeTitle(item.title)
+          isMusicLikeTitle(item.title, item.artist)
       );
       if (filtered.length >= 4) {
         return filtered;

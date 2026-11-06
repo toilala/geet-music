@@ -4,6 +4,7 @@ export * from '@/core/storage';
 export * from '@/core/types';
 export * from '@/core/innertube';
 export * from '@/core/constants';
+export * from '@/core/content-filter';
 export * from '@/core/database';
 export * from '@/core/domain';
 export * from '@/core/utils';

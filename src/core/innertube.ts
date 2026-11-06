@@ -1,4 +1,5 @@
 import type { Track } from '@/types/music';
+import { isMusicLikeContent } from '@/core/content-filter';
 
 export type InnerTubeClient = 'WEB' | 'ANDROID' | 'ANDROID_MUSIC';
 export type InnerTubeEndpoint = { videoId?: string; playlistId?: string; browseId?: string; params?: string };
@@ -67,7 +68,7 @@ export class InnerTubeClientApi {
     const artist = renderer.ownerText?.runs?.map((run) => run.text ?? '').join('').replace(' - Topic', '') || 'Unknown artist';
     const duration = renderer.lengthText?.simpleText ?? '0:00';
     const durationSeconds = duration.split(':').reduce((total, value) => total * 60 + Number(value), 0);
-    if (durationSeconds > 0 && durationSeconds < 90) return [];
+    if ((durationSeconds > 0 && durationSeconds < 90) || !isMusicLikeContent(title, artist)) return [];
     return [{ id: renderer.videoId, videoId: renderer.videoId, title, artist, artwork: renderer.thumbnail?.thumbnails?.at(-1)?.url ?? `https://i.ytimg.com/vi/${renderer.videoId}/hqdefault.jpg`, duration, durationSeconds }];
   }
 }
