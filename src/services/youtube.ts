@@ -1,5 +1,6 @@
 import { tracks, type Track } from '@/data/music';
 import { filterMusicSuggestion, isMusicLikeContent, isNonMusicContent } from '@/core/content-filter';
+import { innerTube } from '@/core/innertube';
 
 type SearchResponse = {
   items?: {
@@ -351,8 +352,28 @@ export async function getSearchSuggestions(query: string): Promise<string[]> {
     .slice(0, 5);
 }
 
-// Continuous Song Discovery Engine (like Echo Brain / Radio)
+// Continuous Song Discovery Engine (matching Echo YouTubeQueue / RDAMVM Radio)
 export async function getRelatedTracks(currentTrack: Track): Promise<Track[]> {
+  try {
+    if (currentTrack.videoId) {
+      const page = await innerTube.next({
+        videoId: currentTrack.videoId,
+        playlistId: `RDAMVM${currentTrack.videoId}`,
+      });
+      const valid = page.items.filter(
+        (item) =>
+          item.id !== currentTrack.id &&
+          item.videoId !== currentTrack.videoId &&
+          isMusicLikeTitle(item.title, item.artist)
+      );
+      if (valid.length >= 3) {
+        return valid;
+      }
+    }
+  } catch (error) {
+    // fallback to search queries
+  }
+
   const queries = [
     `${currentTrack.artist} official songs music`,
     `${currentTrack.artist} official audio`,

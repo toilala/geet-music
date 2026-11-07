@@ -79,13 +79,39 @@ export class InnerTubeClientApi {
   }
 
   private toTrack(renderer: Renderer): Track[] {
-    if (!renderer.videoId) return [];
-    const title = renderer.title?.runs?.map((run) => run.text ?? '').join('') || 'Untitled track';
-    const artist = renderer.ownerText?.runs?.map((run) => run.text ?? '').join('').replace(' - Topic', '') || 'Unknown artist';
-    const duration = renderer.lengthText?.simpleText ?? '0:00';
+    const videoId =
+      renderer.videoId ||
+      renderer.playlistItemData?.videoId ||
+      renderer.navigationEndpoint?.watchEndpoint?.videoId;
+    if (!videoId) return [];
+
+    const title =
+      renderer.title?.runs?.map((run) => run.text ?? '').join('') ||
+      renderer.title?.simpleText ||
+      renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.map((r) => r.text ?? '').join('') ||
+      'Untitled track';
+
+    const artist =
+      renderer.ownerText?.runs?.map((run) => run.text ?? '').join('').replace(' - Topic', '') ||
+      renderer.longBylineText?.runs?.map((run) => run.text ?? '').join('').replace(' - Topic', '') ||
+      renderer.shortBylineText?.runs?.map((run) => run.text ?? '').join('').replace(' - Topic', '') ||
+      renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text?.replace(' - Topic', '') ||
+      'Unknown artist';
+
+    const duration =
+      renderer.lengthText?.simpleText ||
+      renderer.lengthText?.runs?.map((run) => run.text ?? '').join('') ||
+      '0:00';
+
     const durationSeconds = duration.split(':').reduce((total, value) => total * 60 + Number(value), 0);
-    if ((durationSeconds > 0 && durationSeconds < 90) || !isMusicLikeContent(title, artist)) return [];
-    return [{ id: renderer.videoId, videoId: renderer.videoId, title, artist, artwork: renderer.thumbnail?.thumbnails?.at(-1)?.url ?? `https://i.ytimg.com/vi/${renderer.videoId}/hqdefault.jpg`, duration, durationSeconds }];
+    if ((durationSeconds > 0 && durationSeconds < 45) || !isMusicLikeContent(title, artist)) return [];
+
+    const artwork =
+      renderer.thumbnail?.thumbnails?.at(-1)?.url ||
+      renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.at(-1)?.url ||
+      `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+    return [{ id: videoId, videoId, title, artist, artwork, duration, durationSeconds }];
   }
 }
 
@@ -93,7 +119,18 @@ export const innerTube = new InnerTubeClientApi();
 
 function collectRenderers(value: unknown, result: Renderer[] = []): Renderer[] {
   if (!value || typeof value !== 'object') return result;
-  if ('videoRenderer' in value && value.videoRenderer && typeof value.videoRenderer === 'object') result.push(value.videoRenderer as Renderer);
+  if ('videoRenderer' in value && value.videoRenderer && typeof value.videoRenderer === 'object') {
+    result.push(value.videoRenderer as Renderer);
+  }
+  if ('playlistPanelVideoRenderer' in value && value.playlistPanelVideoRenderer && typeof value.playlistPanelVideoRenderer === 'object') {
+    result.push(value.playlistPanelVideoRenderer as Renderer);
+  }
+  if ('musicResponsiveListItemRenderer' in value && value.musicResponsiveListItemRenderer && typeof value.musicResponsiveListItemRenderer === 'object') {
+    result.push(value.musicResponsiveListItemRenderer as Renderer);
+  }
+  if ('compactVideoRenderer' in value && value.compactVideoRenderer && typeof value.compactVideoRenderer === 'object') {
+    result.push(value.compactVideoRenderer as Renderer);
+  }
   Object.values(value).forEach((child) => collectRenderers(child, result));
   return result;
 }
