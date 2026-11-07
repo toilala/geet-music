@@ -67,11 +67,18 @@ export default function SettingsScreen() {
           <SettingRow label="Smooth lyric animation" description="Use synchronized, animated lyric transitions in the player." value={preferences?.lyricAnimation === 'smooth'} onChange={(value) => update({ lyricAnimation: value ? 'smooth' : 'minimal' })} />
         </View>
 
-        <Text style={styles.eyebrow}>LYRICS</Text>
+        <Text style={styles.eyebrow}>LYRICS PROVIDERS</Text>
         <View style={styles.group}>
-          <ThemeRow active={lyricsProvider === 'auto'} label="Automatic provider" onPress={() => { setLyricsProviderState('auto'); void setLyricsProvider('auto'); }} />
-          <ThemeRow active={lyricsProvider === 'lrclib'} label="LRCLIB" onPress={() => { setLyricsProviderState('lrclib'); void setLyricsProvider('lrclib'); }} />
-          <ThemeRow active={lyricsProvider === 'lyrics-ovh'} label="Lyrics.ovh" onPress={() => { setLyricsProviderState('lyrics-ovh'); void setLyricsProvider('lyrics-ovh'); }} />
+          <ThemeRow active={lyricsProvider === 'auto'} label="Automatic (Echo Racing Order)" onPress={() => { setLyricsProviderState('auto'); void setLyricsProvider('auto'); }} />
+          <ThemeRow active={lyricsProvider === 'YouLyPlus'} label="YouLyPlus (Multi-Mirror)" onPress={() => { setLyricsProviderState('YouLyPlus'); void setLyricsProvider('YouLyPlus'); }} />
+          <ThemeRow active={lyricsProvider === 'Paxsenix'} label="PaxSenix (Apple Music Syllables)" onPress={() => { setLyricsProviderState('Paxsenix'); void setLyricsProvider('Paxsenix'); }} />
+          <ThemeRow active={lyricsProvider === 'Unison'} label="Unison" onPress={() => { setLyricsProviderState('Unison'); void setLyricsProvider('Unison'); }} />
+          <ThemeRow active={lyricsProvider === 'BetterLyrics'} label="Better Lyrics (TTML Syllables)" onPress={() => { setLyricsProviderState('BetterLyrics'); void setLyricsProvider('BetterLyrics'); }} />
+          <ThemeRow active={lyricsProvider === 'SimpMusic'} label="SimpMusic (RichSync)" onPress={() => { setLyricsProviderState('SimpMusic'); void setLyricsProvider('SimpMusic'); }} />
+          <ThemeRow active={lyricsProvider === 'LrcLib' || lyricsProvider === 'lrclib'} label="LrcLib" onPress={() => { setLyricsProviderState('LrcLib'); void setLyricsProvider('LrcLib'); }} />
+          <ThemeRow active={lyricsProvider === 'Kugou'} label="KuGou" onPress={() => { setLyricsProviderState('Kugou'); void setLyricsProvider('Kugou'); }} />
+          <ThemeRow active={lyricsProvider === 'YouTubeSubtitle'} label="YouTube Subtitle (Transcript)" onPress={() => { setLyricsProviderState('YouTubeSubtitle'); void setLyricsProvider('YouTubeSubtitle'); }} />
+          <ThemeRow active={lyricsProvider === 'YouTubeMusic'} label="YouTube Music (Official)" onPress={() => { setLyricsProviderState('YouTubeMusic'); void setLyricsProvider('YouTubeMusic'); }} />
         </View>
 
         <Text style={styles.eyebrow}>APPEARANCE</Text>
