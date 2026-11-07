@@ -7,7 +7,14 @@ export type WordTimestamp = {
   endTime: number;   // in milliseconds
 };
 
-export type LyricsLine = LyricLine & {
+export type LyricsLine = {
+  startTime: number;
+  endTime: number;
+  words: WordTimestamp[];
+  translatedLyric?: string;
+  romanLyric?: string;
+  isBG?: boolean;
+  isDuet?: boolean;
   agent?: string;        // e.g. "v1", "v2" for duets
   isBackground?: boolean;// for backing vocals
 };
@@ -17,7 +24,7 @@ export type LyricsPayload = {
   synced: boolean;
   wordTimed: boolean;
   source: string;
-  providerName: string;
+  providerName?: string;
   rawLrc?: string;
 };
 
