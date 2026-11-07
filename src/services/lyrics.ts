@@ -442,11 +442,11 @@ export async function getPaxSenixLyrics(
       headers: { 'User-Agent': 'echomusic/1.0' },
     });
     if (!searchRes.ok) return null;
-    const candidates = (await searchRes.json()) as Array<{
+    const candidates = (await searchRes.json()) as {
       id: string;
       displayName?: string;
       duration?: number;
-    }>;
+    }[];
     if (!Array.isArray(candidates) || candidates.length === 0) return null;
 
     // Score candidate matching Echo's scoring logic
@@ -477,12 +477,12 @@ export async function getPaxSenixLyrics(
     });
     if (!lyricsRes.ok) return null;
     const data = (await lyricsRes.json()) as {
-      content?: Array<{
+      content?: {
         timestamp: number;
         background?: boolean;
         oppositeTurn?: boolean;
-        text: Array<{ text: string; timestamp: number; endtime: number }>;
-      }>;
+        text: { text: string; timestamp: number; endtime: number }[];
+      }[];
       ttml?: string;
     };
 
@@ -606,10 +606,11 @@ export async function getBetterLyrics(
       const words: string[] = [];
       let fullText = '';
 
+      let isBg = false;
       while ((sMatch = spanRegex.exec(pBody)) !== null) {
         const sBegin = parseTtmlTime(sMatch[1]);
         const sEnd = parseTtmlTime(sMatch[2]);
-        const sRole = sMatch[3];
+        if (sMatch[3] === 'x-bg') isBg = true;
         const sText = sMatch[4];
         if (sText) {
           fullText += sText;
@@ -623,7 +624,8 @@ export async function getBetterLyrics(
       }
 
       if (fullText) {
-        lines.push(`${lineTs}${agent}${fullText}`);
+        const bgTag = isBg ? '{bg}' : '';
+        lines.push(`${lineTs}${agent}${bgTag}${fullText}`);
         if (words.length > 0) {
           lines.push(`<${words.join('|')}>`);
         }
@@ -674,12 +676,12 @@ export async function getSimpMusicLyrics(videoId: string, duration?: number): Pr
         if (!res.ok) continue;
         const apiResponse = (await res.json()) as {
           success?: boolean;
-          data?: Array<{
+          data?: {
             duration?: number;
             richSyncLyrics?: string;
             syncedLyrics?: string;
             plainLyrics?: string;
-          }>;
+          }[];
         };
 
         if (apiResponse.success && Array.isArray(apiResponse.data) && apiResponse.data.length > 0) {
