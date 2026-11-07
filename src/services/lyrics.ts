@@ -328,7 +328,7 @@ async function fetchFromYouLyServer(
   if (!res.ok) return null;
   const data = (await res.json()) as {
     syncedLyrics?: string;
-    lyrics?: Array<{ time?: number; text?: string; syllabus?: Array<{ time?: number; text?: string; isBackground?: boolean }> }>;
+    lyrics?: { time?: number; text?: string; syllabus?: { time?: number; text?: string; isBackground?: boolean }[] }[];
     plainLyrics?: string;
   };
 
