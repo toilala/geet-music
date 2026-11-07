@@ -29,7 +29,7 @@ export function LyricsSheet({
   const loadLyrics = () => {
     if (loading || payload) return;
     setLoading(true);
-    void getLyrics(track.title, track.artist, duration || parseTrackDuration(track.duration))
+    void getLyrics(track.title, track.artist, duration || parseTrackDuration(track.duration), undefined, track.videoId)
       .then((result) => {
         setPayload(result);
         if (result.lines.length === 0) setMessage('No lyrics were found from the available providers.');

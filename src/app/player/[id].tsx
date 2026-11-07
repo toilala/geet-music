@@ -109,7 +109,7 @@ export default function PlayerScreen() {
   // Load lyrics when track changes or lyrics view is toggled
   useEffect(() => {
     let mounted = true;
-    void getLyrics(activeTrack.title, activeTrack.artist, activeTrack.durationSeconds || 210).then((data) => {
+    void getLyrics(activeTrack.title, activeTrack.artist, activeTrack.durationSeconds || 210, undefined, activeTrack.videoId).then((data) => {
       if (mounted) {
         setLyricsForTrack(activeTrack.id);
         setLyricsData(data);
