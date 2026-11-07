@@ -163,7 +163,7 @@ export function PlaybackEngine() {
       height={200}
       width={200}
       videoId={activeTrack.videoId}
-      play={playing && readyVideoId === activeTrack.videoId}
+      play={playing}
       volume={volume}
       mute={volume === 0}
       forceAndroidAutoplay
@@ -190,7 +190,12 @@ export function PlaybackEngine() {
       onReady={() => {
         setReadyVideoId(activeTrack.videoId);
         setStatus('ready');
-        if (playIntent.current) setPlaying(true);
+        if (playIntent.current || playing) {
+          try {
+            playerRef.current?.seekTo(0, true);
+          } catch {}
+          setPlaying(true);
+        }
         void playerRef.current?.getDuration().then((duration) => {
           if (duration > 0) setPlayback(0, duration);
         });
