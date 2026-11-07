@@ -272,19 +272,58 @@ export default function PlayerScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.lyricsScrollContent}>
               {lyricsForTrack === activeTrack.id && lyricsData && lyricsData.lines.length > 0 ? (
-                lyricsData.lines.map((line, idx) => {
-                  const isActive = idx === activeLyricIndex;
-                  return (
-                    <Pressable
-                      key={`lyric-${idx}`}
-                      onPress={() => seekTo(line.startTime / 1000)}
-                      style={[styles.lyricLineWrap, isActive && styles.lyricLineActiveWrap]}>
-                      <Text style={[styles.lyricLineText, isActive && styles.lyricLineActiveText]}>
-                        {lyricText(line)}
+                <>
+                  {lyricsData.source ? (
+                    <View style={styles.lyricsProviderPill}>
+                      <Text style={styles.lyricsProviderPillText}>
+                        {lyricsData.wordTimed ? 'WORD SYNC · ' : lyricsData.synced ? 'SYNCED · ' : ''}
+                        {lyricsData.source}
                       </Text>
-                    </Pressable>
-                  );
-                })
+                    </View>
+                  ) : null}
+                  {lyricsData.lines.map((line, idx) => {
+                    const isActive = idx === activeLyricIndex;
+                    const isWordTimed = Boolean(lyricsData.wordTimed && line.words && line.words.length > 1);
+
+                    return (
+                      <Pressable
+                        key={`lyric-${idx}`}
+                        onPress={() => seekTo(line.startTime / 1000)}
+                        style={[styles.lyricLineWrap, isActive && styles.lyricLineActiveWrap]}>
+                        <Text
+                          style={[
+                            styles.lyricLineText,
+                            isActive && styles.lyricLineActiveText,
+                            line.isBackground && styles.lyricLineBackground,
+                          ]}>
+                          {isWordTimed
+                            ? line.words.map((w, wIdx) => {
+                                const isWordActive =
+                                  isActive && currentMillis >= w.startTime && currentMillis < w.endTime;
+                                const isWordPassed =
+                                  isActive && currentMillis >= w.endTime;
+                                return (
+                                  <Text
+                                    key={`word-${wIdx}`}
+                                    style={
+                                      isWordActive
+                                        ? styles.lyricWordActive
+                                        : isWordPassed
+                                        ? styles.lyricWordPassed
+                                        : isActive
+                                        ? styles.lyricWordUpcoming
+                                        : undefined
+                                    }>
+                                    {w.word}{' '}
+                                  </Text>
+                                );
+                              })
+                            : lyricText(line)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </>
               ) : lyricsForTrack === activeTrack.id && lyricsData ? (
                 <View style={styles.fallbackLyricsBox}>
                   <Text style={styles.fallbackLyricsTitle}>{track.title}</Text>
@@ -696,6 +735,36 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '900',
+  },
+  lyricsProviderPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 8,
+    alignSelf: 'center',
+  },
+  lyricsProviderPillText: {
+    color: '#9BA7A3',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  lyricWordActive: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  lyricWordPassed: {
+    color: '#FFFFFF',
+    opacity: 0.95,
+  },
+  lyricWordUpcoming: {
+    color: 'rgba(255, 255, 255, 0.35)',
+  },
+  lyricLineBackground: {
+    fontStyle: 'italic',
+    fontSize: 19,
+    opacity: 0.75,
   },
   fallbackLyricsBox: {
     alignItems: 'center',
