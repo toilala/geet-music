@@ -11,11 +11,11 @@ type Renderer = {
   ownerText?: { runs?: { text?: string }[] };
   longBylineText?: { runs?: { text?: string }[] };
   shortBylineText?: { runs?: { text?: string }[] };
-  flexColumns?: Array<{
+  flexColumns?: {
     musicResponsiveListItemFlexColumnRenderer?: {
       text?: { runs?: { text?: string }[] };
     };
-  }>;
+  }[];
   thumbnail?: {
     thumbnails?: { url?: string }[];
     musicThumbnailRenderer?: { thumbnail?: { thumbnails?: { url?: string }[] } };

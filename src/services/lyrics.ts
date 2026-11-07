@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { parseLyric, type LyricLine, type LyricWord } from 'lyric-kit';
+import { type LyricWord } from 'lyric-kit';
 
 export type WordTimestamp = {
   word: string;

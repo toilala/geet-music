@@ -128,7 +128,7 @@ export default function PlayerScreen() {
     return () => {
       mounted = false;
     };
-  }, [activeTrack.id, activeTrack.title, activeTrack.artist, activeTrack.durationSeconds]);
+  }, [activeTrack.id, activeTrack.title, activeTrack.artist, activeTrack.durationSeconds, activeTrack.videoId]);
 
   // Gentle pulse animation for artwork while playing
   useEffect(() => {

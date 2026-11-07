@@ -370,7 +370,7 @@ export async function getRelatedTracks(currentTrack: Track): Promise<Track[]> {
         return valid;
       }
     }
-  } catch (error) {
+  } catch {
     // fallback to search queries
   }
 
