@@ -7,10 +7,26 @@ export type InnerTubePage<T> = { items: T[]; continuation?: string; endpoint?: I
 
 type Renderer = {
   videoId?: string;
-  title?: { runs?: { text?: string }[] };
+  title?: { runs?: { text?: string }[]; simpleText?: string };
   ownerText?: { runs?: { text?: string }[] };
-  thumbnail?: { thumbnails?: { url?: string }[] };
-  lengthText?: { simpleText?: string };
+  longBylineText?: { runs?: { text?: string }[] };
+  shortBylineText?: { runs?: { text?: string }[] };
+  flexColumns?: Array<{
+    musicResponsiveListItemFlexColumnRenderer?: {
+      text?: { runs?: { text?: string }[] };
+    };
+  }>;
+  thumbnail?: {
+    thumbnails?: { url?: string }[];
+    musicThumbnailRenderer?: { thumbnail?: { thumbnails?: { url?: string }[] } };
+  };
+  lengthText?: { simpleText?: string; runs?: { text?: string }[] };
+  navigationEndpoint?: {
+    watchEndpoint?: { videoId?: string };
+  };
+  playlistItemData?: {
+    videoId?: string;
+  };
 };
 
 const CLIENTS: Record<InnerTubeClient, { name: string; version: string; apiKey: string }> = {
