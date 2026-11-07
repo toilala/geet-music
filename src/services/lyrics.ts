@@ -128,9 +128,9 @@ export function hasSyncedLyrics(lrc: string): boolean {
   return /\[\d{1,2}:\d{2}\.\d{2,3}\]/.test(lrc);
 }
 
-export function lyricText(line: LyricLine | LyricsLine): string {
+export function lyricText(line: LyricsLine): string {
   if (!line || !line.words) return '';
-  return line.words.map((w) => w.word).join('').trim();
+  return line.words.map((w: WordTimestamp) => w.word).join('').trim();
 }
 
 export function parseLyrics(rawLyrics: string, source: string, providerName: string): LyricsPayload {
