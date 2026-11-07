@@ -744,11 +744,11 @@ export async function getLrcLibLyrics(
 
     const searchRes = await fetch(searchUrl.toString(), { signal: controller.signal });
     if (searchRes.ok) {
-      const items = (await searchRes.json()) as Array<{
+      const items = (await searchRes.json()) as {
         syncedLyrics?: string;
         plainLyrics?: string;
         duration?: number;
-      }>;
+      }[];
       if (Array.isArray(items) && items.length > 0) {
         const sorted = items
           .filter((i) => i.syncedLyrics || i.plainLyrics)
@@ -790,7 +790,7 @@ export async function getKuGouLyrics(
     const searchRes = await fetch(searchUrl, { signal: controller.signal });
     if (!searchRes.ok) return null;
     const searchData = (await searchRes.json()) as {
-      candidates?: Array<{ id: string; accesskey: string; duration?: number }>;
+      candidates?: { id: string; accesskey: string; duration?: number }[];
     };
 
     const candidate = searchData.candidates?.[0];
